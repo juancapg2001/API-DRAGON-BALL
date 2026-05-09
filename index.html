@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dragon Ball Universe</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- BACKGROUND LAYERS -->
+  <canvas id="bgCanvas"></canvas>
+  <div class="stars"></div>
+  <div class="energy-bg"></div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-wrap">
+      <h1 id="titleText">Dragon Ball</h1>
+      <p class="subtitle" id="subtitleText">Universo — Explora cada guerrero</p>
+    </div>
+  </header>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+
+    <div class="search-wrap">
+      <svg class="icon" width="18" height="18" fill="none" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" stroke="#ffd700" stroke-width="2"/>
+        <path d="M16.5 16.5L21 21" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <input id="searchInput" type="text" placeholder="Buscar guerrero..." autocomplete="off" spellcheck="false">
+      <div id="dropdown"></div>
+    </div>
+
+    <button class="btn btn-random" id="btnRandom">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="5" height="5" rx="1" stroke="white" stroke-width="2"/>
+        <rect x="16" y="3" width="5" height="5" rx="1" stroke="white" stroke-width="2"/>
+        <rect x="3" y="16" width="5" height="5" rx="1" stroke="white" stroke-width="2"/>
+        <path d="M16 19l5-5-5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span id="randomLabel">Aleatorio</span>
+    </button>
+
+    <button class="btn btn-lang" id="btnLang">
+      <span id="langLabel">🇬🇧 English</span>
+    </button>
+
+  </div>
+
+  <!-- INITIAL LOADER -->
+  <div id="initLoader">
+    <div class="spinner"></div>
+    <p id="initText">Cargando guerreros...</p>
+  </div>
+
+  <!-- HINT -->
+  <div id="hint" style="display:none">
+    <span class="big">🐉</span>
+    <p id="hintText">Escribe un nombre para buscar un guerrero</p>
+  </div>
+
+  <!-- BIO PANEL -->
+  <div id="bioWrap"></div>
+
+  <!-- SCROLL TOP -->
+  <button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>API proporcionada por <a href="https://web.dragonball-api.com" target="_blank" rel="noopener">Dragon Ball API</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
