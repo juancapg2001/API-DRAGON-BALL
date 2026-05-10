@@ -215,32 +215,110 @@ const t = k => T[lang][k] || k;
 })();
 
 // ══════════════════════════════════════
-// API
+// API — LOAD FROM BOTH SOURCES
 // ══════════════════════════════════════
 async function loadAll() {
   initLoader.style.display = 'flex';
   hint.style.display = 'none';
   chars = [];
-  let page = 1;
+
+  // ── Source 1: dragonball-api.com (paginated) ──
   try {
-    while (page <= 5) {
+    let page = 1;
+    while (page <= 10) {
       const res   = await fetch(`https://dragonball-api.com/api/characters?limit=58&page=${page}`);
       const data  = await res.json();
       const items = data.items || data.characters || data;
       if (!items || !items.length) break;
-      chars.push(...items);
+      chars.push(...items.map(normalise1));
       const meta = data.meta || {};
       if (!meta.totalPages || page >= meta.totalPages) break;
       page++;
     }
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error('API1 error:', e); }
+
+  // ── Source 2: dragonballapi.com (DB / DBZ / DBGT / DBS) ──
+  const endpoints2 = [
+    'https://www.dragonballapi.com/api/dragonball',
+    'https://www.dragonballapi.com/api/dragonballz',
+    'https://www.dragonballapi.com/api/dragonballgt',
+    'https://www.dragonballapi.com/api/dragonballsuper',
+  ];
+
+  const existingNames = new Set(chars.map(c => c.name.toLowerCase().trim()));
+
+  await Promise.allSettled(endpoints2.map(async url => {
+    try {
+      const res  = await fetch(url);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : (data.characters || data.results || []);
+      items.forEach(c => {
+        const norm = normalise2(c);
+        if (!norm.name) return;
+        // deduplicate by name
+        if (!existingNames.has(norm.name.toLowerCase().trim())) {
+          existingNames.add(norm.name.toLowerCase().trim());
+          chars.push(norm);
+        }
+      });
+    } catch(e) { /* endpoint unavailable, skip silently */ }
+  }));
+
+  // Sort alphabetically
+  chars.sort((a,b) => a.name.localeCompare(b.name));
+
   initLoader.style.display = 'none';
   hint.style.display = '';
+  console.log(`✅ Total characters loaded: ${chars.length}`);
+}
+
+/** Normalise a character from dragonball-api.com */
+function normalise1(c) {
+  return {
+    id:          c.id || c._id,
+    name:        c.name || '?',
+    race:        c.race || '',
+    gender:      c.gender || '',
+    ki:          c.ki,
+    maxKi:       c.maxKi,
+    affiliation: c.affiliation || '',
+    image:       c.image || '',
+    description: c.description || '',
+    originPlanet:c.originPlanet || null,
+    transformations: c.transformations || [],
+    _src: 1,
+  };
+}
+
+/** Normalise a character from dragonballapi.com */
+function normalise2(c) {
+  return {
+    id:          `s2_${c.id || Math.random()}`,
+    name:        c.name || c.nombre || '',
+    race:        c.race || c.raza || '',
+    gender:      c.genre || c.gender || c.genero || '',
+    ki:          c.ki || null,
+    maxKi:       c.maxKi || null,
+    affiliation: c.affiliation || '',
+    image:       c.image || c.imagen || '',
+    description: c.description || c.descripcion || '',
+    originPlanet:c.planet ? { name: c.planet } : null,
+    transformations: (c.transformations || []).map(t => ({
+      name:  t.title || t.name || t.nombre || '',
+      image: t.image || t.imagen || '',
+    })),
+    _src: 2,
+  };
 }
 
 async function fetchOne(id) {
+  // Source 2 characters have full data already in the chars array
+  if (String(id).startsWith('s2_')) {
+    return chars.find(c => c.id === id) || {};
+  }
   const res = await fetch(`https://dragonball-api.com/api/characters/${id}`);
-  return res.json();
+  const c   = await res.json();
+  return normalise1(c);
 }
 
 // ══════════════════════════════════════
@@ -273,7 +351,7 @@ function renderBio(c) {
   const chips = [
     [t('race'),   c.race],
     [t('gender'), c.gender],
-    [t('origin'), c.originPlanet?.name || c.planet],
+    [t('origin'), c.originPlanet?.name || c.planet || ''],
     [t('affil'),  c.affiliation],
   ].filter(([,v]) => v)
    .map(([k,v]) => `<span class="chip"><strong>${k}:</strong> ${v}</span>`)
@@ -380,9 +458,23 @@ function hlStr(name, q) {
   return name.replace(new RegExp(`(${esc})`,'gi'),'<mark>$1</mark>');
 }
 
-// ── Event delegation on the dropdown container (single listener, no blur conflict) ──
+// ══════════════════════════════════════
+// DROPDOWN EVENTS
+// ══════════════════════════════════════
+
+// Flag: user pressed down inside dropdown, don't close on blur
+let dropPointerDown = false;
+
+// Step 1: mark that pointer went down inside dropdown
 drop.addEventListener('pointerdown', e => {
-  e.preventDefault(); // prevent input blur
+  e.preventDefault();         // stop input from blurring
+  e.stopPropagation();        // stop document listener from firing
+  dropPointerDown = true;
+});
+
+// Step 2: on pointerup inside dropdown, find the item and select it
+drop.addEventListener('pointerup', e => {
+  dropPointerDown = false;
   const item = e.target.closest('.dd-item');
   if (!item) return;
   const id = item.dataset.id;
@@ -391,39 +483,63 @@ drop.addEventListener('pointerdown', e => {
   showBio(id);
 });
 
-// ── Input events ──
+// Input: open/close dropdown + hide bio while typing
 inp.addEventListener('input', function() {
-  this.value.trim() ? openDrop(this.value) : closeDrop();
+  if (this.value.trim()) {
+    // Hide bio while typing
+    if (bioWrap.innerHTML !== '') {
+      bioWrap.innerHTML     = '';
+      bioWrap.style.display = 'none';
+      currentChar           = null;
+    }
+    hint.style.display = 'none';
+    openDrop(this.value);
+  } else {
+    closeDrop();
+    if (currentChar) {
+      bioWrap.style.display = 'block';
+      hint.style.display    = 'none';
+    } else {
+      hint.style.display    = '';
+      bioWrap.style.display = 'none';
+    }
+  }
 });
 
+// Blur: close dropdown only if not clicking inside it
 inp.addEventListener('blur', () => {
-  // Small delay so delegation pointerdown fires first
-  setTimeout(closeDrop, 200);
+  if (dropPointerDown) return;
+  setTimeout(() => {
+    if (!dropPointerDown) closeDrop();
+  }, 100);
 });
 
-// Keyboard nav in dropdown
+// Keyboard navigation
 inp.addEventListener('keydown', function(e) {
   const items = drop.querySelectorAll('.dd-item');
   if (e.key === 'ArrowDown') {
     e.preventDefault();
-    acIdx = Math.min(acIdx+1, items.length-1);
+    acIdx = Math.min(acIdx + 1, items.length - 1);
     setActive(items);
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
-    acIdx = Math.max(acIdx-1, 0);
+    acIdx = Math.max(acIdx - 1, 0);
     setActive(items);
   } else if (e.key === 'Enter') {
     e.preventDefault();
     const target = acIdx >= 0 ? items[acIdx] : items.length === 1 ? items[0] : null;
-    if (target) { inp.value=''; closeDrop(); showBio(target.dataset.id); }
+    if (target) { inp.value = ''; closeDrop(); showBio(target.dataset.id); }
   } else if (e.key === 'Escape') {
     closeDrop(); inp.value = '';
   }
 });
 
-// Close on click outside the whole search-wrap
+// Close on click outside
 document.addEventListener('pointerdown', e => {
-  if (!e.target.closest('.search-wrap')) closeDrop();
+  if (!e.target.closest('.search-wrap')) {
+    dropPointerDown = false;
+    closeDrop();
+  }
 });
 
 function setActive(items) {
