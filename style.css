@@ -354,6 +354,144 @@ h1 {
   100% { transform:translate(-50%,-50%) scale(3); opacity:0; }
 }
 
+/* ══════════════════════════════════════════
+   KAMEHAMEHA OVERLAY
+══════════════════════════════════════════ */
+
+#kameOverlay {
+  position: fixed; inset: 0; z-index: 99999;
+  background: rgba(0,0,12,.88);
+  pointer-events: all;
+  animation: kameFadeIn .2s ease;
+}
+@keyframes kameFadeIn { from{opacity:0} to{opacity:1} }
+
+#kameCanvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+}
+
+/* ── Charge ring (CSS, behind canvas) ── */
+#kameUI {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
+#kameChargeRing {
+  position: absolute;
+  width: 260px; height: 260px; border-radius: 50%;
+  border: 2px solid rgba(120,190,255,.5);
+  box-shadow:
+    0 0 40px rgba(80,150,255,.7),
+    0 0 80px rgba(60,120,255,.3),
+    inset 0 0 40px rgba(80,150,255,.35);
+  animation: ringPulse .55s ease-in-out infinite alternate,
+             ringSpin 4s linear infinite;
+}
+@keyframes ringPulse {
+  from { box-shadow: 0 0 30px rgba(80,150,255,.5), inset 0 0 25px rgba(80,150,255,.25); border-color:rgba(100,170,255,.4); }
+  to   { box-shadow: 0 0 70px rgba(130,200,255,1), 0 0 130px rgba(80,150,255,.5), inset 0 0 55px rgba(120,190,255,.6); border-color:rgba(210,235,255,.95); }
+}
+@keyframes ringSpin { to { transform:rotate(360deg); } }
+
+#kameChargeRing::before, #kameChargeRing::after {
+  content: ''; position: absolute; border-radius: 50%;
+  border: 1.5px solid rgba(150,210,255,.35);
+  animation: ringPulse .55s ease-in-out infinite alternate reverse;
+}
+#kameChargeRing::before { inset: 18px; animation-delay: .12s; }
+#kameChargeRing::after  { inset: 36px; animation-delay: .25s; }
+
+/* ── Orb ── */
+#kameOrb {
+  position: absolute;
+  width: 100px; height: 100px; border-radius: 50%;
+  background: radial-gradient(circle at 32% 32%, #fff 0%, #b8dfff 28%, #4090ff 62%, #1035cc 100%);
+  box-shadow:
+    0 0 30px rgba(120,190,255,.9),
+    0 0 70px rgba(80,150,255,.6),
+    0 0 130px rgba(60,120,255,.3);
+  animation: orbPulse .45s ease-in-out infinite alternate;
+}
+@keyframes orbPulse {
+  from { transform:scale(.9);  box-shadow: 0 0 25px rgba(120,190,255,.8), 0 0 55px rgba(80,150,255,.4); }
+  to   { transform:scale(1.12); box-shadow: 0 0 50px rgba(180,220,255,1), 0 0 100px rgba(120,180,255,.75), 0 0 160px rgba(80,140,255,.3); }
+}
+
+/* ── JP + EN label ── */
+#kameLabel {
+  position: absolute;
+  bottom: 12%; left: 50%; transform: translateX(-50%);
+  text-align: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+#kameLabel.show { opacity: 1; }
+#kameLabel.fire { bottom: auto; top: 50%; transform: translate(-50%,-50%) scale(1.15); }
+
+#kameLabelJP {
+  font-family: serif;
+  font-size: clamp(2.2rem,7vw,4.5rem);
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow:
+    0 0 18px rgba(120,190,255,1),
+    0 0 45px rgba(80,150,255,.85),
+    0 0 90px rgba(60,120,255,.5);
+  animation: labelPulse .18s ease-in-out infinite alternate;
+  line-height: 1;
+}
+#kameLabelEN {
+  font-family: 'Bangers', cursive;
+  font-size: clamp(2.8rem,9vw,6rem);
+  letter-spacing: 8px;
+  color: #fff;
+  text-shadow:
+    0 0 22px rgba(150,210,255,1),
+    0 0 55px rgba(100,170,255,.9),
+    0 0 110px rgba(60,130,255,.5);
+  animation: labelPulse .18s ease-in-out infinite alternate reverse;
+  line-height: 1.1;
+}
+@keyframes labelPulse {
+  from { opacity:.88; transform:scale(1)    skewX(-1.5deg); }
+  to   { opacity:1;   transform:scale(1.03) skewX(1.5deg); }
+}
+
+/* ── Character name reveal ── */
+#kameCharName {
+  position: absolute;
+  top: 8%; left: 50%; transform: translateX(-50%);
+  font-family: 'Bangers', cursive;
+  font-size: clamp(1.8rem,5vw,3.2rem);
+  letter-spacing: 6px;
+  color: var(--gold);
+  text-shadow:
+    0 0 15px rgba(255,215,0,.9),
+    0 0 40px rgba(255,150,0,.6),
+    0 0 80px rgba(255,100,0,.3);
+  white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  text-transform: uppercase;
+  transition: opacity .3s;
+}
+#kameCharName.show {
+  opacity: 1;
+  animation: nameGlow 1s ease-in-out infinite alternate;
+}
+@keyframes nameGlow {
+  from { text-shadow: 0 0 15px rgba(255,215,0,.8), 0 0 35px rgba(255,150,0,.5); }
+  to   { text-shadow: 0 0 25px rgba(255,215,0,1),  0 0 60px rgba(255,150,0,.8), 0 0 100px rgba(255,80,0,.4); }
+}
+
+/* ── White flash ── */
+#kameFlash {
+  position: absolute; inset: 0;
+  background: white; opacity: 0; pointer-events: none;
+  transition: opacity .06s;
+}
+#kameFlash.on { opacity: 1; transition: opacity .35s .05s; }
+
 /* ── FOOTER ── */
 footer {
   position: relative; z-index: 10;

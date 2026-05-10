@@ -432,32 +432,349 @@ function setActive(items) {
 }
 
 // ══════════════════════════════════════
-// RANDOM
+// RANDOM + KAMEHAMEHA ANIMATION
 // ══════════════════════════════════════
 document.getElementById('btnRandom').addEventListener('click', function() {
-  if (!chars.length) return;
-  this.style.transform = 'scale(.9) rotate(-5deg)';
-  setTimeout(() => this.style.transform='', 200);
-  spawnBurst(this);
+  if (!chars.length || document.getElementById('kameOverlay')) return;
+
+  this.style.transform = 'scale(.88) rotate(-6deg)';
+  setTimeout(() => this.style.transform = '', 250);
 
   let pick;
-  do { pick = chars[Math.floor(Math.random()*chars.length)]; }
+  do { pick = chars[Math.floor(Math.random() * chars.length)]; }
   while (pick === lastRandom && chars.length > 1);
   lastRandom = pick;
-
   closeDrop();
   inp.value = '';
-  showBio(pick.id || pick._id);
+
+  fireKamehameha(pick, () => showBio(pick.id || pick._id));
 });
 
-function spawnBurst(btn) {
-  const r = btn.getBoundingClientRect();
-  const el = document.createElement('div');
-  el.className  = 'ki-burst';
-  el.style.left = (r.left + r.width/2)  + 'px';
-  el.style.top  = (r.top  + r.height/2 + scrollY) + 'px';
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 700);
+function fireKamehameha(character, onDone) {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+
+  /* ── BUILD OVERLAY ── */
+  const overlay = document.createElement('div');
+  overlay.id = 'kameOverlay';
+  overlay.innerHTML = `
+    <canvas id="kameCanvas"></canvas>
+    <div id="kameUI">
+      <div id="kameChargeRing"></div>
+      <div id="kameOrb"></div>
+    </div>
+    <div id="kameLabel">
+      <div id="kameLabelJP">かめはめ波！！</div>
+      <div id="kameLabelEN">KAMEHAMEHA!!</div>
+    </div>
+    <div id="kameCharName">${character.name.toUpperCase()}</div>
+    <div id="kameFlash"></div>
+  `;
+  document.body.appendChild(overlay);
+
+  const canvas = document.getElementById('kameCanvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = W;
+  canvas.height = H;
+
+  const cx = W / 2, cy = H / 2;
+
+  /* ── PHASES: charge(120f) → scream(40f) → fire → impact(30f) → fade ── */
+  let phase    = 'charge';
+  let frame    = 0;
+  let beamProgress = 0;   // 0→1 across screen
+  let impactT  = 0;
+  let fadeT    = 0;
+  let particles = [];
+  let debris    = [];
+
+  // ── Particle helpers ──
+  function addKiParticle() {
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 100 + Math.random() * (Math.min(W,H) * .38);
+    particles.push({
+      x: cx + Math.cos(angle)*dist, y: cy + Math.sin(angle)*dist,
+      tx: cx, ty: cy,
+      r: 1.5 + Math.random()*5,
+      hue: 190 + Math.random()*40,
+      speed: 3.5 + Math.random()*5,
+      alpha: .8 + Math.random()*.2,
+      trail: [],
+    });
+  }
+
+  function addDebris(x, y) {
+    for (let i = 0; i < 8; i++) {
+      const a = Math.random()*Math.PI*2;
+      const s = 3 + Math.random()*9;
+      debris.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+        r: 2+Math.random()*5, alpha: 1, hue: 190+Math.random()*60 });
+    }
+  }
+
+  // ── Draw helpers ──
+  function drawOrb(progress) {
+    const r = 45 + Math.sin(frame*.22)*15 + progress*30;
+    // outer halo layers
+    [r*4, r*2.5, r*1.5].forEach((hr, i) => {
+      const a = [.06,.13,.25][i];
+      const g = ctx.createRadialGradient(cx,cy,0,cx,cy,hr);
+      g.addColorStop(0, `hsla(210,100%,75%,${a})`);
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,hr,0,Math.PI*2); ctx.fill();
+    });
+    // core
+    const cg = ctx.createRadialGradient(cx-r*.25,cy-r*.25,r*.05, cx,cy,r);
+    cg.addColorStop(0,   '#ffffff');
+    cg.addColorStop(.25, '#b8e0ff');
+    cg.addColorStop(.6,  '#4090ff');
+    cg.addColorStop(1,   '#1030cc');
+    ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    // specular
+    const sg = ctx.createRadialGradient(cx-r*.3,cy-r*.35,0, cx-r*.3,cy-r*.35,r*.6);
+    sg.addColorStop(0,'rgba(255,255,255,.7)'); sg.addColorStop(1,'transparent');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawBeam(progress) {
+    const startX = 0;
+    const endX   = W * progress;
+    const t      = frame * .025;
+    // beam wobble height
+    const h  = 52 + Math.sin(t*3.1)*8 + Math.cos(t*5.7)*5;
+
+    // far glow
+    const fg = ctx.createLinearGradient(cx,cy-h*3,cx,cy+h*3);
+    fg.addColorStop(0,'transparent'); fg.addColorStop(.5,'rgba(80,160,255,.09)'); fg.addColorStop(1,'transparent');
+    ctx.fillStyle=fg; ctx.fillRect(startX, cy-h*3, endX, h*6);
+
+    // mid glow
+    const mg = ctx.createLinearGradient(cx,cy-h*1.8,cx,cy+h*1.8);
+    mg.addColorStop(0,'transparent'); mg.addColorStop(.5,'rgba(120,190,255,.22)'); mg.addColorStop(1,'transparent');
+    ctx.fillStyle=mg; ctx.fillRect(startX, cy-h*1.8, endX, h*3.6);
+
+    // core beam
+    const bg = ctx.createLinearGradient(cx,cy-h,cx,cy+h);
+    bg.addColorStop(0,  'rgba(180,225,255,.65)');
+    bg.addColorStop(.18,'rgba(120,190,255,.92)');
+    bg.addColorStop(.5, 'rgba(255,255,255,1)');
+    bg.addColorStop(.82,'rgba(120,190,255,.92)');
+    bg.addColorStop(1,  'rgba(180,225,255,.65)');
+    ctx.fillStyle=bg; ctx.fillRect(startX, cy-h, endX, h*2);
+
+    // energy lines inside
+    ctx.save(); ctx.globalAlpha=.35;
+    for (let i=0;i<4;i++) {
+      const ly = cy + (Math.sin(t*4+i*1.6)*h*.55);
+      const lg = ctx.createLinearGradient(startX,0,endX,0);
+      lg.addColorStop(0,'transparent'); lg.addColorStop(.3,'#aaddff');
+      lg.addColorStop(.7,'#ffffff'); lg.addColorStop(1,'transparent');
+      ctx.strokeStyle=lg; ctx.lineWidth=1.5+Math.sin(t*6+i)*1;
+      ctx.beginPath(); ctx.moveTo(startX,ly); ctx.lineTo(endX,ly); ctx.stroke();
+    }
+    ctx.restore();
+
+    // sparkles
+    ctx.save();
+    for (let i=0;i<14;i++) {
+      const sx = startX + Math.random()*endX;
+      const sy = cy + (Math.random()-.5)*h*1.8;
+      const sr = .5 + Math.random()*2.5;
+      ctx.globalAlpha = Math.random()*.9;
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    // origin burst
+    const og = ctx.createRadialGradient(cx,cy,0,cx,cy,h*1.4);
+    og.addColorStop(0,'rgba(255,255,255,.9)');
+    og.addColorStop(.4,'rgba(150,200,255,.5)');
+    og.addColorStop(1,'transparent');
+    ctx.fillStyle=og; ctx.beginPath(); ctx.arc(cx,cy,h*1.4,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawImpact(ix, t) {
+    const pulse = Math.sin(t*.35)*15;
+    // shockwave rings
+    for (let i=0;i<4;i++) {
+      const rr = (t*6+i*35) % 180;
+      ctx.save(); ctx.globalAlpha = Math.max(0,(1-rr/180)*.55);
+      ctx.strokeStyle=`hsl(${200+i*15},100%,75%)`;
+      ctx.lineWidth=3-i*.5;
+      ctx.beginPath(); ctx.arc(ix,cy,rr,0,Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+    // core explosion
+    const er = 60 + pulse;
+    const eg = ctx.createRadialGradient(ix,cy,0,ix,cy,er*2.5);
+    eg.addColorStop(0,'rgba(255,255,255,1)');
+    eg.addColorStop(.2,'rgba(200,230,255,.95)');
+    eg.addColorStop(.5,'rgba(80,160,255,.6)');
+    eg.addColorStop(.85,'rgba(30,80,200,.15)');
+    eg.addColorStop(1,'transparent');
+    ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(ix,cy,er*2.5,0,Math.PI*2); ctx.fill();
+    // spikes
+    ctx.save();
+    for (let i=0;i<12;i++) {
+      const a = (i/12)*Math.PI*2 + t*.04;
+      const sl = 45 + Math.sin(t*.3+i)*25 + pulse;
+      const x2 = ix + Math.cos(a)*sl, y2 = cy + Math.sin(a)*sl;
+      const sg = ctx.createLinearGradient(ix,cy,x2,y2);
+      sg.addColorStop(0,'rgba(255,255,255,.9)'); sg.addColorStop(1,'transparent');
+      ctx.strokeStyle=sg; ctx.lineWidth=2.5-i*.1; ctx.globalAlpha=.7;
+      ctx.beginPath(); ctx.moveTo(ix,cy); ctx.lineTo(x2,y2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function tick() {
+    ctx.clearRect(0,0,W,H);
+    frame++;
+
+    /* ── CHARGE (120 frames ~2s) ── */
+    if (phase === 'charge') {
+      const prog = frame/120;
+      // dark vignette
+      const vig = ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*.75);
+      vig.addColorStop(0,'transparent');
+      vig.addColorStop(1,`rgba(0,0,15,${.3+prog*.4})`);
+      ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+
+      if (frame%2===0) addKiParticle();
+
+      // particles with trails
+      particles = particles.filter(p => {
+        const dx=p.tx-p.x, dy=p.ty-p.y, d=Math.sqrt(dx*dx+dy*dy);
+        if (d < p.speed+2) { addDebris(cx,cy); return false; }
+        p.trail.push({x:p.x,y:p.y});
+        if (p.trail.length>8) p.trail.shift();
+        p.x+=(dx/d)*p.speed; p.y+=(dy/d)*p.speed;
+        // trail
+        p.trail.forEach((tp,i)=>{
+          ctx.save(); ctx.globalAlpha=p.alpha*(i/p.trail.length)*.4;
+          ctx.fillStyle=`hsl(${p.hue},100%,75%)`;
+          ctx.beginPath(); ctx.arc(tp.x,tp.y,p.r*(i/p.trail.length),0,Math.PI*2); ctx.fill();
+          ctx.restore();
+        });
+        // particle
+        ctx.save(); ctx.globalAlpha=p.alpha;
+        const pg=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*2);
+        pg.addColorStop(0,'#fff'); pg.addColorStop(.5,`hsl(${p.hue},100%,70%)`); pg.addColorStop(1,'transparent');
+        ctx.fillStyle=pg; ctx.beginPath(); ctx.arc(p.x,p.y,p.r*2,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+        return true;
+      });
+
+      // debris at orb
+      debris = debris.filter(d=>{
+        d.x+=d.vx; d.y+=d.vy; d.vx*=.88; d.vy*=.88; d.alpha-=.03;
+        if(d.alpha<=0) return false;
+        ctx.save(); ctx.globalAlpha=d.alpha;
+        ctx.fillStyle=`hsl(${d.hue},100%,70%)`;
+        ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+        return true;
+      });
+
+      drawOrb(prog);
+
+      if (frame >= 120) {
+        phase='scream'; frame=0;
+        document.getElementById('kameLabel').classList.add('show');
+        document.getElementById('kameCharName').classList.add('show');
+      }
+
+    /* ── SCREAM (50 frames ~0.8s) ── */
+    } else if (phase === 'scream') {
+      const prog = frame/50;
+      // screen shake
+      const shk = (1-prog)*6;
+      ctx.save(); ctx.translate((Math.random()-.5)*shk,(Math.random()-.5)*shk);
+
+      const vig2=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*.7);
+      vig2.addColorStop(0,'transparent'); vig2.addColorStop(1,'rgba(0,0,20,.7)');
+      ctx.fillStyle=vig2; ctx.fillRect(0,0,W,H);
+
+      if(frame%2===0) addKiParticle();
+      particles=particles.filter(p=>{
+        const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<p.speed+2){return false;}
+        p.x+=(dx/d)*p.speed*1.4; p.y+=(dy/d)*p.speed*1.4;
+        ctx.save(); ctx.globalAlpha=p.alpha;
+        const pg=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*2);
+        pg.addColorStop(0,'#fff'); pg.addColorStop(.5,`hsl(${p.hue},100%,70%)`); pg.addColorStop(1,'transparent');
+        ctx.fillStyle=pg; ctx.beginPath(); ctx.arc(p.x,p.y,p.r*2,0,Math.PI*2); ctx.fill();
+        ctx.restore(); return true;
+      });
+      drawOrb(1+prog*.5);
+      ctx.restore();
+
+      if (frame>=50) { phase='fire'; frame=0;
+        document.getElementById('kameUI').style.display='none';
+        document.getElementById('kameLabel').classList.add('fire');
+      }
+
+    /* ── FIRE ── */
+    } else if (phase === 'fire') {
+      beamProgress = Math.min(1, beamProgress + .012);
+      const eased  = 1 - Math.pow(1-beamProgress, 3);
+
+      // screen flash at start
+      if(frame<8){ ctx.fillStyle=`rgba(200,230,255,${.5*(1-frame/8)})`; ctx.fillRect(0,0,W,H); }
+
+      drawBeam(eased);
+
+      // debris fading
+      debris=debris.filter(d=>{
+        d.x+=d.vx; d.y+=d.vy; d.alpha-=.02;
+        if(d.alpha<=0) return false;
+        ctx.save(); ctx.globalAlpha=d.alpha;
+        ctx.fillStyle=`hsl(${d.hue},100%,75%)`;
+        ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2); ctx.fill();
+        ctx.restore(); return true;
+      });
+
+      if(beamProgress>=1){ phase='impact'; frame=0; impactT=0; addDebris(W*.94,cy); addDebris(W*.94,cy); }
+
+    /* ── IMPACT ── */
+    } else if (phase === 'impact') {
+      impactT=frame;
+      drawBeam(1);
+      drawImpact(W*.94, impactT);
+
+      // screen shake
+      if(frame<15){
+        const s=(15-frame)/15*12;
+        ctx.save(); ctx.translate((Math.random()-.5)*s,(Math.random()-.5)*s); ctx.restore();
+        document.body.style.transform=`translate(${(Math.random()-.5)*s}px,${(Math.random()-.5)*s}px)`;
+      } else {
+        document.body.style.transform='';
+      }
+
+      debris=debris.filter(d=>{
+        d.x+=d.vx; d.y+=d.vy; d.vy+=.15; d.alpha-=.016;
+        if(d.alpha<=0) return false;
+        ctx.save(); ctx.globalAlpha=d.alpha;
+        ctx.fillStyle=`hsl(${d.hue},100%,75%)`;
+        ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2); ctx.fill();
+        ctx.restore(); return true;
+      });
+
+      if(frame>=30){ phase='fade'; frame=0; document.getElementById('kameFlash').classList.add('on'); }
+
+    /* ── FADE ── */
+    } else if (phase === 'fade') {
+      fadeT=frame;
+      if(frame>=35){ cancelAnimationFrame(raf); document.body.style.transform=''; overlay.remove(); onDone(); return; }
+    }
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  raf = requestAnimationFrame(tick);
+  // safety
+  setTimeout(()=>{ document.body.style.transform=''; if(document.getElementById('kameOverlay')){overlay.remove();onDone();}},8000);
 }
 
 // ══════════════════════════════════════
