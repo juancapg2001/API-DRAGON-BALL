@@ -63,6 +63,17 @@ body {
 }
 @keyframes energyPulse { from{opacity:.6} to{opacity:1} }
 
+/* ── HOME LINK ── */
+#homeLink {
+  text-decoration: none;
+  display: inline-block;
+  transition: filter .2s, transform .2s;
+}
+#homeLink:hover {
+  filter: drop-shadow(0 0 24px rgba(255,215,0,.7));
+  transform: scale(1.03);
+}
+
 /* ── HEADER ── */
 header {
   position: relative; z-index: 10;

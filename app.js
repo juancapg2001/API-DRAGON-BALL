@@ -53,160 +53,116 @@ const t = k => T[lang][k] || k;
 (function initCanvas() {
   const canvas = document.getElementById('bgCanvas');
   const ctx    = canvas.getContext('2d');
+  let W = canvas.width  = window.innerWidth;
+  let H = canvas.height = window.innerHeight;
+  let T = 0;
 
-  // Dragon balls floating in background
-  const balls = Array.from({length: 7}, (_, i) => ({
-    stars: i + 1,
-    x: Math.random() * window.innerWidth,
-    y: Math.random() * window.innerHeight,
-    r: 18 + Math.random() * 22,
-    vx: (Math.random() - .5) * .4,
-    vy: (Math.random() - .5) * .4,
-    opacity: .08 + Math.random() * .1,
-    phase: Math.random() * Math.PI * 2,
+  window.addEventListener('resize', () => {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  });
+
+  // ── DRAGON BALLS ──
+  const balls = Array.from({length:7}, (_,i) => ({
+    stars: i+1,
+    x: Math.random()*W, y: Math.random()*H,
+    r: 18 + Math.random()*22,
+    vx: (Math.random()-.5)*.35, vy: (Math.random()-.5)*.35,
+    opacity: .07 + Math.random()*.1,
+    phase: Math.random()*Math.PI*2,
   }));
 
-  // Energy streaks
-  const streaks = Array.from({length: 12}, () => ({
-    x: Math.random() * window.innerWidth,
-    y: Math.random() * window.innerHeight,
-    len: 60 + Math.random() * 120,
-    angle: Math.random() * Math.PI * 2,
-    speed: .3 + Math.random() * .5,
-    opacity: 0,
-    maxOp: .04 + Math.random() * .06,
-    fade: Math.random() < .5 ? 1 : -1,
-    color: Math.random() < .5 ? '255,215,0' : '255,107,0',
+  // ── ENERGY STREAKS ──
+  const streaks = Array.from({length:14}, () => ({
+    x: Math.random()*W, y: Math.random()*H,
+    len: 60+Math.random()*140, angle: Math.random()*Math.PI*2,
+    speed: .25+Math.random()*.5, opacity:0,
+    maxOp: .04+Math.random()*.06, fade: 1,
+    color: Math.random()<.5 ? '255,215,0' : '255,107,0',
   }));
 
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
+  // ── DRAGON BALL HELPERS ──
   function drawBall(b) {
-    const pulse = Math.sin(Date.now() * .001 + b.phase) * .015;
-    const op    = b.opacity + pulse;
-    const r     = b.r;
-
-    ctx.save();
-    ctx.globalAlpha = op;
-    ctx.translate(b.x, b.y);
-
-    // Glow
-    const glow = ctx.createRadialGradient(0,0,r*.2,0,0,r*2.2);
-    glow.addColorStop(0, 'rgba(255,215,0,.3)');
-    glow.addColorStop(1, 'rgba(255,107,0,0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(0,0,r*2.2,0,Math.PI*2);
-    ctx.fill();
-
-    // Ball gradient
-    const grad = ctx.createRadialGradient(-r*.3,-r*.3,r*.05,0,0,r);
-    grad.addColorStop(0, '#fff8dc');
-    grad.addColorStop(.35, '#FFD700');
-    grad.addColorStop(.75, '#FF6B00');
-    grad.addColorStop(1,   '#cc3300');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(0,0,r,0,Math.PI*2);
-    ctx.fill();
-
-    // Shine
-    ctx.globalAlpha = op * .6;
-    const shine = ctx.createRadialGradient(-r*.3,-r*.35,0,-r*.3,-r*.35,r*.55);
-    shine.addColorStop(0,'rgba(255,255,255,.55)');
-    shine.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle = shine;
-    ctx.beginPath();
-    ctx.arc(0,0,r,0,Math.PI*2);
-    ctx.fill();
-
-    // Stars
-    ctx.globalAlpha = op * .85;
-    ctx.fillStyle = 'rgba(140,20,0,.85)';
-    drawStars(ctx, b.stars, r);
-
+    const op = b.opacity + Math.sin(T*.018+b.phase)*.012;
+    const r  = b.r;
+    ctx.save(); ctx.globalAlpha=op; ctx.translate(b.x,b.y);
+    const gw=ctx.createRadialGradient(0,0,r*.2,0,0,r*2.2);
+    gw.addColorStop(0,'rgba(255,215,0,.3)'); gw.addColorStop(1,'rgba(255,107,0,0)');
+    ctx.fillStyle=gw; ctx.beginPath(); ctx.arc(0,0,r*2.2,0,Math.PI*2); ctx.fill();
+    const gr=ctx.createRadialGradient(-r*.3,-r*.3,r*.05,0,0,r);
+    gr.addColorStop(0,'#fff8dc'); gr.addColorStop(.35,'#FFD700');
+    gr.addColorStop(.75,'#FF6B00'); gr.addColorStop(1,'#cc3300');
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=op*.55;
+    const sh=ctx.createRadialGradient(-r*.3,-r*.35,0,-r*.3,-r*.35,r*.55);
+    sh.addColorStop(0,'rgba(255,255,255,.55)'); sh.addColorStop(1,'transparent');
+    ctx.fillStyle=sh; ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=op*.85; ctx.fillStyle='rgba(140,20,0,.85)';
+    drawStars(ctx,b.stars,r);
     ctx.restore();
   }
 
-  function drawStars(ctx, count, r) {
-    const positions = getStarPositions(count, r);
-    positions.forEach(([sx,sy]) => {
+  function drawStars(ctx,count,r){
+    getStarPos(count,r).forEach(([sx,sy])=>{
       ctx.beginPath();
-      for (let i=0; i<5; i++) {
-        const a  = (i*4*Math.PI/5) - Math.PI/2;
-        const a2 = a + 2*Math.PI/5;
-        const ro = r * .13, ri = r * .055;
-        if (i===0) ctx.moveTo(sx + ro*Math.cos(a), sy + ro*Math.sin(a));
-        else        ctx.lineTo(sx + ro*Math.cos(a), sy + ro*Math.sin(a));
-        ctx.lineTo(sx + ri*Math.cos(a2), sy + ri*Math.sin(a2));
+      for(let i=0;i<5;i++){
+        const a=(i*4*Math.PI/5)-Math.PI/2, a2=a+2*Math.PI/5;
+        const ro=r*.13, ri=r*.055;
+        if(i===0) ctx.moveTo(sx+ro*Math.cos(a),sy+ro*Math.sin(a));
+        else       ctx.lineTo(sx+ro*Math.cos(a),sy+ro*Math.sin(a));
+        ctx.lineTo(sx+ri*Math.cos(a2),sy+ri*Math.sin(a2));
       }
-      ctx.closePath();
-      ctx.fill();
+      ctx.closePath(); ctx.fill();
     });
   }
 
-  function getStarPositions(n, r) {
-    const s = r * .32;
-    switch(n) {
-      case 1: return [[0,0]];
-      case 2: return [[-s*.5,0],[s*.5,0]];
-      case 3: return [[0,-s*.5],[s*.45,s*.3],[-s*.45,s*.3]];
-      case 4: return [[-s*.4,-s*.4],[s*.4,-s*.4],[-s*.4,s*.4],[s*.4,s*.4]];
-      case 5: return [[0,-s*.55],[s*.52,-.17*s],[-s*.52,-.17*s],[.32*s,.44*s],[-.32*s,.44*s]];
-      case 6: return [[0,-s*.55],[s*.52,-.17*s],[-s*.52,-.17*s],[.32*s,.44*s],[-.32*s,.44*s],[0,.1*s]];
-      case 7: return [[0,0],[0,-s*.55],[s*.52,-.17*s],[-s*.52,-.17*s],[.32*s,.44*s],[-.32*s,.44*s],[0,.58*s]];
-      default: return [[0,0]];
+  function getStarPos(n,r){
+    const s=r*.32;
+    switch(n){
+      case 1:return[[0,0]];
+      case 2:return[[-s*.5,0],[s*.5,0]];
+      case 3:return[[0,-s*.5],[s*.45,s*.3],[-s*.45,s*.3]];
+      case 4:return[[-s*.4,-s*.4],[s*.4,-s*.4],[-s*.4,s*.4],[s*.4,s*.4]];
+      case 5:return[[0,-s*.55],[s*.52,-.17*s],[-s*.52,-.17*s],[.32*s,.44*s],[-.32*s,.44*s]];
+      case 6:return[[0,-s*.55],[s*.52,-.17*s],[-s*.52,-.17*s],[.32*s,.44*s],[-.32*s,.44*s],[0,.1*s]];
+      case 7:return[[0,0],[0,-s*.55],[s*.52,-.17*s],[-s*.52,-.17*s],[.32*s,.44*s],[-.32*s,.44*s],[0,.58*s]];
+      default:return[[0,0]];
     }
   }
 
+  // ── MAIN TICK ──
   function tick() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    T++;
+    ctx.clearRect(0,0,W,H);
 
-    // Streaks
-    streaks.forEach(s => {
-      s.opacity += .002 * s.fade;
-      if (s.opacity >= s.maxOp) s.fade = -1;
-      if (s.opacity <= 0) {
-        s.fade = 1;
-        s.x = Math.random() * canvas.width;
-        s.y = Math.random() * canvas.height;
-        s.angle = Math.random() * Math.PI * 2;
-        s.len = 60 + Math.random() * 120;
+    // 1. Energy streaks
+    streaks.forEach(s=>{
+      s.opacity += .002*s.fade;
+      if(s.opacity>=s.maxOp) s.fade=-1;
+      if(s.opacity<=0){
+        s.fade=1; s.x=Math.random()*W; s.y=Math.random()*H;
+        s.angle=Math.random()*Math.PI*2; s.len=60+Math.random()*140;
       }
-      ctx.save();
-      ctx.globalAlpha = Math.max(0,s.opacity);
-      const grad = ctx.createLinearGradient(
-        s.x, s.y,
-        s.x + Math.cos(s.angle)*s.len,
-        s.y + Math.sin(s.angle)*s.len
-      );
-      grad.addColorStop(0, `rgba(${s.color},0)`);
-      grad.addColorStop(.5,`rgba(${s.color},1)`);
-      grad.addColorStop(1, `rgba(${s.color},0)`);
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(s.x+Math.cos(s.angle)*s.len, s.y+Math.sin(s.angle)*s.len);
-      ctx.stroke();
-      ctx.restore();
-      s.x += Math.cos(s.angle)*s.speed;
-      s.y += Math.sin(s.angle)*s.speed;
+      ctx.save(); ctx.globalAlpha=Math.max(0,s.opacity);
+      const sg=ctx.createLinearGradient(s.x,s.y,s.x+Math.cos(s.angle)*s.len,s.y+Math.sin(s.angle)*s.len);
+      sg.addColorStop(0,`rgba(${s.color},0)`);
+      sg.addColorStop(.5,`rgba(${s.color},1)`);
+      sg.addColorStop(1,`rgba(${s.color},0)`);
+      ctx.strokeStyle=sg; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(s.x,s.y);
+      ctx.lineTo(s.x+Math.cos(s.angle)*s.len,s.y+Math.sin(s.angle)*s.len);
+      ctx.stroke(); ctx.restore();
+      s.x+=Math.cos(s.angle)*s.speed; s.y+=Math.sin(s.angle)*s.speed;
     });
 
-    // Dragon balls
-    balls.forEach(b => {
+    // 2. Dragon Balls
+    balls.forEach(b=>{
       drawBall(b);
-      b.x += b.vx; b.y += b.vy;
-      if (b.x < -b.r*3)  b.x = canvas.width  + b.r*3;
-      if (b.x > canvas.width  + b.r*3) b.x = -b.r*3;
-      if (b.y < -b.r*3)  b.y = canvas.height + b.r*3;
-      if (b.y > canvas.height + b.r*3) b.y = -b.r*3;
+      b.x+=b.vx; b.y+=b.vy;
+      if(b.x<-b.r*3)  b.x=W+b.r*3;
+      if(b.x>W+b.r*3) b.x=-b.r*3;
+      if(b.y<-b.r*3)  b.y=H+b.r*3;
+      if(b.y>H+b.r*3) b.y=-b.r*3;
     });
 
     requestAnimationFrame(tick);
@@ -402,8 +358,8 @@ function renderBio(c) {
       ${trHTML}
     </div>`;
 
-  // Close button inside innerHTML — attach via JS (no inline onclick needed)
-  document.getElementById('bioCloseBtn').addEventListener('click', closeBio);
+  // Close button: use onclick to avoid stacking listeners on re-render
+  document.getElementById('bioCloseBtn').onclick = closeBio;
 }
 
 function closeBio() {
@@ -486,19 +442,17 @@ drop.addEventListener('pointerup', e => {
 // Input: open/close dropdown + hide bio while typing
 inp.addEventListener('input', function() {
   if (this.value.trim()) {
-    // Hide bio while typing
-    if (bioWrap.innerHTML !== '') {
-      bioWrap.innerHTML     = '';
-      bioWrap.style.display = 'none';
-      currentChar           = null;
-    }
-    hint.style.display = 'none';
+    // Just hide bio while typing — keep innerHTML + currentChar intact
+    bioWrap.style.display = 'none';
+    hint.style.display    = 'none';
     openDrop(this.value);
   } else {
     closeDrop();
     if (currentChar) {
+      bioWrap.className     = '';
       bioWrap.style.display = 'block';
       hint.style.display    = 'none';
+      renderBio(currentChar);  // re-render with current language
     } else {
       hint.style.display    = '';
       bioWrap.style.display = 'none';
@@ -908,8 +862,11 @@ document.getElementById('btnLang').addEventListener('click', () => {
   document.getElementById('initText').textContent     = t('initLoad');
   inp.placeholder = t('search');
 
-  // If bio is currently visible, re-render it with new language
+  // Re-render bio with new language whether visible or hidden
   if (currentChar) {
+    bioWrap.className     = '';
+    bioWrap.style.display = 'block';
+    hint.style.display    = 'none';
     renderBio(currentChar);
   }
 });
