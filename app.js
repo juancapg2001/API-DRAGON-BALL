@@ -19,6 +19,25 @@ const hint       = document.getElementById('hint');
 const initLoader = document.getElementById('initLoader');
 
 // ══════════════════════════════════════
+// AUDIO
+// ══════════════════════════════════════
+const sfxKame = new Audio('kamehameha.m4a');
+sfxKame.preload = 'auto';
+
+const sfxTransform = new Audio('transformacion.m4a');
+sfxTransform.preload = 'auto';
+
+function playKame() {
+  sfxKame.currentTime = 0;
+  sfxKame.play().catch(() => {});
+}
+
+function playTransform() {
+  sfxTransform.currentTime = 0;
+  sfxTransform.play().catch(() => {});
+}
+
+// ══════════════════════════════════════
 // TRANSLATIONS
 // ══════════════════════════════════════
 const T = {
@@ -32,6 +51,9 @@ const T = {
     race:'Raza', gender:'Género', origin:'Planeta', affil:'Afiliación',
     noResults:'Sin resultados',
     hint:'Escribe un nombre para buscar un guerrero',
+    trDesc:'Descripción de la transformación',
+    trKi:'Ki de transformación',
+    loading:'Cargando...',
   },
   en: {
     title:'Dragon Ball', subtitle:'Universe — Explore every warrior',
@@ -43,6 +65,9 @@ const T = {
     race:'Race', gender:'Gender', origin:'Planet', affil:'Affiliation',
     noResults:'No results',
     hint:'Type a name to search for a warrior',
+    trDesc:'Transformation description',
+    trKi:'Transformation Ki',
+    loading:'Loading...',
   }
 };
 const t = k => T[lang][k] || k;
@@ -278,6 +303,502 @@ async function fetchOne(id) {
 }
 
 // ══════════════════════════════════════
+// TRANSFORMATION DETAIL MODAL
+// ══════════════════════════════════════
+
+/**
+ * Fetch full transformation data.
+ * dragonball-api.com: each transformation has its own endpoint at /api/transformations/:id
+ * For source-2 chars we only have inline data (name + image), so we return what we have.
+ */
+async function fetchTransformation(tr) {
+  // If the transformation object already has a description (from detailed fetch), use it
+  if (tr.description) return tr;
+  // If it has an id, try the API
+  if (tr.id) {
+    try {
+      const res  = await fetch(`https://dragonball-api.com/api/transformations/${tr.id}`);
+      const data = await res.json();
+      return {
+        id:          data.id,
+        name:        data.name        || tr.name,
+        image:       data.image       || tr.image,
+        ki:          data.ki          || null,
+        description: data.description || '',
+      };
+    } catch(e) { /* fall through */ }
+  }
+  return tr;
+}
+
+function openTransformModal(tr, charName) {
+  // Remove any existing modal
+  const old = document.getElementById('trModal');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'trModal';
+  modal.className = 'tr-modal-overlay';
+
+  modal.innerHTML = `
+    <div class="tr-modal" id="trModalCard">
+      <button class="tr-modal-close" id="trModalClose">✕</button>
+      <div class="tr-modal-inner">
+        <div class="tr-modal-img-wrap">
+          <img src="${tr.image || ''}" alt="${tr.name}" onerror="this.style.opacity='.1'">
+        </div>
+        <div class="tr-modal-body">
+          <div class="tr-modal-from">${charName}</div>
+          <div class="tr-modal-name">${tr.name}</div>
+          ${tr.ki ? `<div class="tr-modal-ki-wrap">
+            <span class="tr-modal-ki-label">${t('trKi')}</span>
+            <span class="tr-modal-ki-val">${fmtKi(tr.ki)}</span>
+          </div>` : ''}
+          <div class="tr-modal-desc-wrap">
+            ${tr.description
+              ? `<p class="tr-modal-desc">${tr.description}</p>`
+              : `<p class="tr-modal-no-desc">—</p>`}
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  // Animate in
+  requestAnimationFrame(() => modal.classList.add('open'));
+
+  // Close handlers
+  document.getElementById('trModalClose').onclick = closeTransformModal;
+  modal.addEventListener('pointerdown', e => {
+    if (e.target === modal) closeTransformModal();
+  });
+}
+
+async function showTransformation(tr, charName) {
+  // Fire transformation animation, then open modal (and fetch in parallel)
+  const fetchPromise = (!tr.description && tr.id) ? fetchTransformation(tr) : Promise.resolve(tr);
+
+  fireTransformAnimation(tr, charName, async () => {
+    openTransformModal(tr, charName);
+
+    if (!tr.description && tr.id) {
+      const desc = document.querySelector('.tr-modal-desc-wrap');
+      if (desc) desc.innerHTML = `<p class="tr-modal-loading"><span class="tr-spinner"></span>${t('loading')}</p>`;
+
+      const full = await fetchPromise;
+      const descWrap = document.querySelector('.tr-modal-desc-wrap');
+      if (descWrap) {
+        descWrap.innerHTML = full.description
+          ? `<p class="tr-modal-desc">${full.description}</p>`
+          : `<p class="tr-modal-no-desc">—</p>`;
+      }
+      if (full.ki && !tr.ki) {
+        const kiWrap = document.querySelector('.tr-modal-ki-wrap');
+        if (!kiWrap) {
+          const nameEl = document.querySelector('.tr-modal-name');
+          if (nameEl) {
+            const kiDiv = document.createElement('div');
+            kiDiv.className = 'tr-modal-ki-wrap';
+            kiDiv.innerHTML = `<span class="tr-modal-ki-label">${t('trKi')}</span><span class="tr-modal-ki-val">${fmtKi(full.ki)}</span>`;
+            nameEl.insertAdjacentElement('afterend', kiDiv);
+          }
+        }
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════
+// TRANSFORMATION ANIMATION
+// ══════════════════════════════════════
+function fireTransformAnimation(tr, charName, onDone) {
+  if (document.getElementById('trAnim')) return;
+
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const cx = W / 2, cy = H / 2;
+
+  /* ── Overlay + canvas ── */
+  const overlay = document.createElement('div');
+  overlay.id = 'trAnim';
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:60000;
+    background:rgba(0,0,0,0);pointer-events:all;
+    display:flex;align-items:center;justify-content:center;
+  `;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+  overlay.appendChild(canvas);
+
+  /* ── Name label ── */
+  const label = document.createElement('div');
+  label.style.cssText = `
+    position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    text-align:center;pointer-events:none;
+    opacity:0;transition:opacity .15s;
+    z-index:2;
+  `;
+  label.innerHTML = `
+    <div style="font-family:'Bangers',cursive;font-size:clamp(1rem,4vw,2.2rem);
+      letter-spacing:5px;color:#fff;text-transform:uppercase;
+      text-shadow:0 0 20px rgba(255,215,0,1),0 0 50px rgba(255,150,0,.9),0 0 100px rgba(255,80,0,.6);
+      margin-bottom:.3rem;opacity:.7;">${charName}</div>
+    <div style="font-family:'Bangers',cursive;font-size:clamp(2rem,8vw,5rem);
+      letter-spacing:6px;color:#FFD700;text-transform:uppercase;
+      background:linear-gradient(135deg,#fff 0%,#FFD700 35%,#FF6B00 70%,#FF2200 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+      text-shadow:none;filter:drop-shadow(0 0 30px rgba(255,215,0,1)) drop-shadow(0 0 60px rgba(255,107,0,.8));
+      animation:trNamePulse .2s ease-in-out infinite alternate;">${tr.name}</div>
+  `;
+  // inject keyframe if not present
+  if (!document.getElementById('trAnimStyles')) {
+    const st = document.createElement('style');
+    st.id = 'trAnimStyles';
+    st.textContent = `
+      @keyframes trNamePulse {
+        from{filter:drop-shadow(0 0 20px rgba(255,215,0,.9)) drop-shadow(0 0 40px rgba(255,107,0,.6));}
+        to  {filter:drop-shadow(0 0 45px rgba(255,215,0,1))  drop-shadow(0 0 90px rgba(255,107,0,1)) drop-shadow(0 0 140px rgba(255,50,0,.7));}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  overlay.appendChild(label);
+  document.body.appendChild(overlay);
+  playTransform();
+  const ctx = canvas.getContext('2d');
+
+  /* ── Colour palette picked from transformation ── */
+  // Gold/orange for Saiyan, blue/white for SSB, green for Namek, etc.
+  // We pick by name keywords
+  const nm = (tr.name || '').toLowerCase();
+  let auraHue = 45;   // gold default
+  let auraHue2 = 20;
+  if (nm.includes('blue') || nm.includes('ssb') || nm.includes('god blue') || nm.includes('azul')) { auraHue=200; auraHue2=210; }
+  else if (nm.includes('red') || nm.includes('rojo') || nm.includes('kaioken'))  { auraHue=0;   auraHue2=15;  }
+  else if (nm.includes('green') || nm.includes('verde') || nm.includes('piccolo')){ auraHue=115; auraHue2=140; }
+  else if (nm.includes('purple') || nm.includes('morado') || nm.includes('hit')) { auraHue=280; auraHue2=300; }
+  else if (nm.includes('white') || nm.includes('blanco') || nm.includes('ultra'))  { auraHue=200; auraHue2=180; }
+  else if (nm.includes('rose') || nm.includes('rosé') || nm.includes('pink'))    { auraHue=320; auraHue2=340; }
+
+  /* ── Particles ── */
+  const particles = [];
+  function spawnParticle() {
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 30 + Math.random() * Math.min(W, H) * .45;
+    particles.push({
+      x: cx + Math.cos(angle) * dist,
+      y: cy + Math.sin(angle) * dist,
+      tx: cx + (Math.random() - .5) * 60,
+      ty: cy + (Math.random() - .5) * 60,
+      r: 1.5 + Math.random() * 4,
+      alpha: .7 + Math.random() * .3,
+      speed: 4 + Math.random() * 8,
+      trail: [],
+    });
+  }
+
+  /* ── Lightning bolts ── */
+  const bolts = [];
+  function spawnBolt() {
+    const angle = Math.random() * Math.PI * 2;
+    const len   = 80 + Math.random() * 180;
+    bolts.push({
+      x: cx, y: cy,
+      angle, len,
+      life: 1, decay: .08 + Math.random() * .1,
+      segs: Math.floor(4 + Math.random() * 5),
+      width: .5 + Math.random() * 2,
+    });
+  }
+
+  /* ── Shockwave rings ── */
+  const rings = [];
+  function spawnRing(r0 = 0) {
+    rings.push({ r: r0, maxR: 200 + Math.random() * 200, alpha: .9, speed: 8 + Math.random() * 6 });
+  }
+
+  /* ── Ground cracks (simple lines from center) ── */
+  const cracks = Array.from({ length: 12 }, (_, i) => ({
+    angle: (i / 12) * Math.PI * 2 + (Math.random() - .5) * .3,
+    len: 0,
+    maxLen: 80 + Math.random() * 160,
+    speed: 6 + Math.random() * 8,
+    alpha: 0,
+  }));
+
+  /* ── Phases ── */
+  // 0: charge(60f)  1: burst(20f)  2: peak(50f)  3: flash(15f)  4: fadeout(30f)
+  let phase = 0, frame = 0;
+  let raf2;
+
+  function drawLightning(x, y, angle, len, segs, alpha, width) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = `hsl(${auraHue},100%,85%)`;
+    ctx.lineWidth = width;
+    ctx.shadowColor = `hsl(${auraHue},100%,70%)`;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    let px = x, py = y;
+    for (let i = 0; i < segs; i++) {
+      const frac = (i + 1) / segs;
+      const ex = x + Math.cos(angle) * len * frac + (Math.random() - .5) * 28;
+      const ey = y + Math.sin(angle) * len * frac + (Math.random() - .5) * 28;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      ctx.lineTo(ex, ey);
+      px = ex; py = ey;
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function tick2() {
+    ctx.clearRect(0, 0, W, H);
+    frame++;
+
+    /* ══ PHASE 0 — CHARGE ══ */
+    if (phase === 0) {
+      const prog = frame / 60;
+
+      // dark vignette build
+      const vig = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .8);
+      vig.addColorStop(0, 'transparent');
+      vig.addColorStop(1, `rgba(0,0,0,${prog * .7})`);
+      ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+
+      // ground cracks grow
+      cracks.forEach(c => {
+        c.len = Math.min(c.maxLen, c.len + c.speed * prog * 1.5);
+        c.alpha = Math.min(.6, c.alpha + .04);
+        ctx.save();
+        ctx.globalAlpha = c.alpha * prog;
+        ctx.strokeStyle = `hsl(${auraHue},90%,65%)`;
+        ctx.lineWidth = 1.2;
+        ctx.shadowColor = `hsl(${auraHue},100%,70%)`;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(c.angle) * c.len, cy + Math.sin(c.angle) * c.len);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // spawn + draw particles
+      if (frame % 2 === 0) spawnParticle();
+      if (frame % 8 === 0) spawnBolt();
+
+      particles.forEach((p, i) => {
+        const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
+        if (d < p.speed) { particles.splice(i, 1); return; }
+        p.trail.push({ x: p.x, y: p.y });
+        if (p.trail.length > 7) p.trail.shift();
+        p.x += (dx / d) * p.speed; p.y += (dy / d) * p.speed;
+        p.trail.forEach((tp, ti) => {
+          ctx.save(); ctx.globalAlpha = p.alpha * (ti / p.trail.length) * .35;
+          ctx.fillStyle = `hsl(${auraHue},100%,75%)`;
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, p.r * (ti / p.trail.length), 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        });
+        ctx.save(); ctx.globalAlpha = p.alpha;
+        const pg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.2);
+        pg.addColorStop(0, '#fff'); pg.addColorStop(.5, `hsl(${auraHue},100%,70%)`); pg.addColorStop(1, 'transparent');
+        ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      });
+
+      bolts.forEach((b, i) => {
+        b.life -= b.decay;
+        if (b.life <= 0) { bolts.splice(i, 1); return; }
+        drawLightning(b.x, b.y, b.angle, b.len, b.segs, b.life * .7, b.width);
+      });
+
+      // inner aura glow (growing)
+      const auraR = 40 + prog * 80;
+      const ag = ctx.createRadialGradient(cx, cy, 0, cx, cy, auraR * 2.5);
+      ag.addColorStop(0, `hsla(${auraHue},100%,85%,${.3 + prog * .3})`);
+      ag.addColorStop(.4, `hsla(${auraHue},100%,60%,${.15 + prog * .15})`);
+      ag.addColorStop(1, 'transparent');
+      ctx.fillStyle = ag; ctx.beginPath(); ctx.arc(cx, cy, auraR * 2.5, 0, Math.PI * 2); ctx.fill();
+
+      // screen shake on last 10 frames
+      if (frame > 50) {
+        const s = (frame - 50) / 10 * 8;
+        document.body.style.transform = `translate(${(Math.random()-.5)*s}px,${(Math.random()-.5)*s}px)`;
+      }
+
+      if (frame >= 60) { phase = 1; frame = 0; spawnRing(0); spawnRing(20); spawnRing(40); }
+
+    /* ══ PHASE 1 — BURST ══ */
+    } else if (phase === 1) {
+      const prog = frame / 20;
+
+      // full white flash building
+      ctx.fillStyle = `rgba(255,255,255,${prog * .9})`;
+      ctx.fillRect(0, 0, W, H);
+
+      // aura explosion
+      const auraR2 = 80 + prog * 250;
+      const ag2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, auraR2);
+      ag2.addColorStop(0, `hsla(${auraHue},100%,95%,${1 - prog * .5})`);
+      ag2.addColorStop(.3, `hsla(${auraHue},100%,70%,${.8 - prog * .4})`);
+      ag2.addColorStop(1, 'transparent');
+      ctx.fillStyle = ag2; ctx.beginPath(); ctx.arc(cx, cy, auraR2, 0, Math.PI * 2); ctx.fill();
+
+      rings.forEach(r => {
+        r.r += r.speed; r.alpha -= .04;
+        if (r.alpha <= 0) return;
+        ctx.save(); ctx.globalAlpha = r.alpha;
+        ctx.strokeStyle = `hsl(${auraHue},100%,80%)`;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = `hsl(${auraHue},100%,70%)`;
+        ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.arc(cx, cy, r.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      });
+
+      document.body.style.transform = `translate(${(Math.random()-.5)*14}px,${(Math.random()-.5)*14}px)`;
+
+      if (frame >= 20) { phase = 2; frame = 0; label.style.opacity = '1'; spawnRing(); spawnRing(60); }
+
+    /* ══ PHASE 2 — PEAK AURA ══ */
+    } else if (phase === 2) {
+      const prog = frame / 50;
+
+      // fading white bg
+      ctx.fillStyle = `rgba(255,255,255,${Math.max(0, .9 - prog * 1.8)})`;
+      ctx.fillRect(0, 0, W, H);
+
+      // dark vignette
+      const vig3 = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .7);
+      vig3.addColorStop(0, 'transparent');
+      vig3.addColorStop(1, `rgba(0,0,0,${prog * .6})`);
+      ctx.fillStyle = vig3; ctx.fillRect(0, 0, W, H);
+
+      // pulsing aura columns (vertical streaks like DB transformations)
+      const pulse = Math.sin(frame * .35) * .3;
+      for (let i = 0; i < 3; i++) {
+        const colH = (H * (.4 + i * .15 + pulse * .08));
+        const colW = 55 - i * 12;
+        const cx2  = cx + (i - 1) * 28;
+        const cg = ctx.createLinearGradient(cx2, cy + colH * .5, cx2, cy - colH * .5);
+        cg.addColorStop(0, 'transparent');
+        cg.addColorStop(.3, `hsla(${auraHue},100%,75%,${.15 + (1-prog)*.25})`);
+        cg.addColorStop(.5, `hsla(${auraHue2},100%,85%,${.35 + (1-prog)*.35})`);
+        cg.addColorStop(.7, `hsla(${auraHue},100%,75%,${.15 + (1-prog)*.25})`);
+        cg.addColorStop(1, 'transparent');
+        ctx.fillStyle = cg;
+        ctx.fillRect(cx2 - colW/2, cy - colH/2, colW, colH);
+      }
+
+      // aura halo
+      const haloR = 120 + Math.sin(frame * .25) * 25;
+      const hg = ctx.createRadialGradient(cx, cy, 0, cx, cy, haloR * 2);
+      hg.addColorStop(0, `hsla(${auraHue},100%,90%,.35)`);
+      hg.addColorStop(.35, `hsla(${auraHue},100%,65%,.2)`);
+      hg.addColorStop(.7, `hsla(${auraHue2},100%,50%,.08)`);
+      hg.addColorStop(1, 'transparent');
+      ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(cx, cy, haloR * 2, 0, Math.PI * 2); ctx.fill();
+
+      // outer energy ring
+      const eRing = 90 + Math.sin(frame * .3) * 20;
+      ctx.save();
+      ctx.globalAlpha = .55;
+      ctx.strokeStyle = `hsl(${auraHue},100%,80%)`;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = `hsl(${auraHue},100%,70%)`;
+      ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(cx, cy, eRing, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+
+      // lightning bolts
+      if (frame % 5 === 0) spawnBolt();
+      bolts.forEach((b, i) => {
+        b.life -= b.decay;
+        if (b.life <= 0) { bolts.splice(i, 1); return; }
+        drawLightning(b.x, b.y, b.angle, b.len * .7, b.segs, b.life * .6, b.width);
+      });
+
+      rings.forEach(r => {
+        r.r += r.speed; r.alpha -= .02;
+        if (r.alpha <= 0) return;
+        ctx.save(); ctx.globalAlpha = r.alpha * (1 - prog);
+        ctx.strokeStyle = `hsl(${auraHue},100%,80%)`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, r.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      });
+
+      // ground cracks (lingering)
+      cracks.forEach(c => {
+        ctx.save(); ctx.globalAlpha = c.alpha * (1 - prog * .8);
+        ctx.strokeStyle = `hsl(${auraHue},80%,60%)`; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(c.angle) * c.len, cy + Math.sin(c.angle) * c.len);
+        ctx.stroke(); ctx.restore();
+      });
+
+      // gentle screen shake at start
+      if (frame < 10) {
+        const s = (1 - frame / 10) * 6;
+        document.body.style.transform = `translate(${(Math.random()-.5)*s}px,${(Math.random()-.5)*s}px)`;
+      } else {
+        document.body.style.transform = '';
+      }
+
+      if (frame >= 50) { phase = 3; frame = 0; }
+
+    /* ══ PHASE 3 — FADE OUT ══ */
+    } else if (phase === 3) {
+      const prog = frame / 30;
+
+      // fade everything to black
+      ctx.fillStyle = `rgba(0,0,0,${prog})`;
+      ctx.fillRect(0, 0, W, H);
+
+      label.style.opacity = `${1 - prog}`;
+
+      if (frame >= 30) {
+        cancelAnimationFrame(raf2);
+        document.body.style.transform = '';
+        sfxTransform.pause();
+        sfxTransform.currentTime = 0;
+        overlay.remove();
+        onDone();
+        return;
+      }
+    }
+
+    raf2 = requestAnimationFrame(tick2);
+  }
+
+  raf2 = requestAnimationFrame(tick2);
+  // safety timeout 6s
+  setTimeout(() => {
+    document.body.style.transform = '';
+    sfxTransform.pause();
+    sfxTransform.currentTime = 0;
+    if (document.getElementById('trAnim')) { overlay.remove(); onDone(); }
+  }, 6000);
+}
+
+function closeTransformModal() {
+  const modal = document.getElementById('trModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.classList.add('closing');
+  setTimeout(() => modal.remove(), 280);
+}
+
+// Close modal on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeTransformModal();
+});
+
+// ══════════════════════════════════════
 // BIO PANEL
 // ══════════════════════════════════════
 async function showBio(id) {
@@ -317,11 +838,19 @@ function renderBio(c) {
     ? `<div class="bio-section">
         <h3>${t('transforms')}</h3>
         <div class="bio-transforms">
-          ${c.transformations.map(tr=>`
-            <div class="tr-item">
-              <img src="${tr.image||''}" alt="${tr.name}" onerror="this.style.display='none'">
+          ${c.transformations.map((tr, i) => {
+            const trData = JSON.stringify(tr).replace(/"/g, '&quot;');
+            return `<div class="tr-item tr-clickable" data-tr-idx="${i}" title="${tr.name}">
+              <div class="tr-item-img-wrap">
+                <img src="${tr.image||''}" alt="${tr.name}" onerror="this.style.opacity='.1'">
+                <div class="tr-item-overlay">
+                  <span class="tr-item-overlay-icon">🔍</span>
+                </div>
+              </div>
               <span>${tr.name}</span>
-            </div>`).join('')}
+              ${tr.ki ? `<span class="tr-item-ki">${fmtKi(tr.ki)}</span>` : ''}
+            </div>`;
+          }).join('')}
         </div>
        </div>`
     : '';
@@ -358,8 +887,19 @@ function renderBio(c) {
       ${trHTML}
     </div>`;
 
-  // Close button: use onclick to avoid stacking listeners on re-render
+  // Close button
   document.getElementById('bioCloseBtn').onclick = closeBio;
+
+  // Transformation click handlers
+  if (c.transformations?.length) {
+    bioWrap.querySelectorAll('.tr-clickable').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.trIdx);
+        const tr  = c.transformations[idx];
+        showTransformation(tr, c.name);
+      });
+    });
+  }
 }
 
 function closeBio() {
@@ -842,6 +1382,7 @@ function fireKamehameha(character, onDone) {
     raf = requestAnimationFrame(tick);
   }
 
+  playKame();
   raf = requestAnimationFrame(tick);
   // safety
   setTimeout(()=>{ document.body.style.transform=''; if(document.getElementById('kameOverlay')){overlay.remove();onDone();}},8000);
