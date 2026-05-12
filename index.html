@@ -15,6 +15,15 @@
   <div class="stars"></div>
   <div class="energy-bg"></div>
 
+  <!-- TRANSFORMATION HOVER PARTICLES (global canvas, always on top) -->
+  <canvas id="trParticleCanvas"></canvas>
+
+  <!-- EPIC INTRO LOADER -->
+  <div id="initLoader">
+    <canvas id="introCanvas"></canvas>
+    <div id="introText" id="initText">Cargando guerreros...</div>
+  </div>
+
   <!-- HEADER -->
   <header>
     <div class="logo-wrap">
@@ -51,12 +60,6 @@
 
   </div>
 
-  <!-- INITIAL LOADER -->
-  <div id="initLoader">
-    <div class="spinner"></div>
-    <p id="initText">Cargando guerreros...</p>
-  </div>
-
   <!-- HINT -->
   <div id="hint" style="display:none">
     <span class="big">🐉</span>
@@ -65,6 +68,20 @@
 
   <!-- BIO PANEL -->
   <div id="bioWrap"></div>
+
+  <!-- PLANET DECORATION -->
+  <div id="planetWrap">
+    <span id="planetLabel">Planeta DB</span>
+    <img id="planetImg" src="img/Planeta.png" alt="Planeta Dragon Ball">
+  </div>
+
+  <!-- PLANET INFO MODAL -->
+  <div id="planetModal">
+    <div id="planetModalInner">
+      <button id="planetModalClose">✕</button>
+      <img src="img/PlanetaInfo.png" alt="Información del Planeta Dragon Ball">
+    </div>
+  </div>
 
   <!-- SCROLL TOP -->
   <button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
