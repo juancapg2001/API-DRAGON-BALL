@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="img/logo dragon ball.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="planets.css">
 </head>
 <body>
 
@@ -15,13 +16,13 @@
   <div class="stars"></div>
   <div class="energy-bg"></div>
 
-  <!-- TRANSFORMATION HOVER PARTICLES (global canvas, always on top) -->
+  <!-- TRANSFORMATION HOVER PARTICLES -->
   <canvas id="trParticleCanvas"></canvas>
 
   <!-- EPIC INTRO LOADER -->
   <div id="initLoader">
     <canvas id="introCanvas"></canvas>
-    <div id="introText" id="initText">Cargando guerreros...</div>
+    <div id="introText">Cargando guerreros...</div>
   </div>
 
   <!-- HEADER -->
@@ -34,7 +35,6 @@
 
   <!-- CONTROLS -->
   <div class="controls">
-
     <div class="search-wrap">
       <svg class="icon" width="18" height="18" fill="none" viewBox="0 0 24 24">
         <circle cx="11" cy="11" r="7" stroke="#ffd700" stroke-width="2"/>
@@ -57,7 +57,6 @@
     <button class="btn btn-lang" id="btnLang">
       <span id="langLabel">🇬🇧 English</span>
     </button>
-
   </div>
 
   <!-- HINT -->
@@ -69,18 +68,11 @@
   <!-- BIO PANEL -->
   <div id="bioWrap"></div>
 
-  <!-- PLANET DECORATION -->
-  <div id="planetWrap">
-    <span id="planetLabel">Planeta DB</span>
-    <img id="planetImg" src="img/Planeta.png" alt="Planeta Dragon Ball">
-  </div>
-
-  <!-- PLANET INFO MODAL -->
-  <div id="planetModal">
-    <div id="planetModalInner">
-      <button id="planetModalClose">✕</button>
-      <img src="img/PlanetaInfo.png" alt="Información del Planeta Dragon Ball">
-    </div>
+  <!-- GOKU CAPSULE EASTER EGG -->
+  <div id="gokuCapsule">
+    <div id="gokuCapsuleLabel">¡¡GOKU SSB!!</div>
+    <img src="img/Goku_capsule.gif" alt="Goku SSB">
+    <button id="gokuCapsuleClose">✕</button>
   </div>
 
   <!-- SCROLL TOP -->
@@ -92,5 +84,6 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="planets.js"></script>
 </body>
 </html>
