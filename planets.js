@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════
-   DRAGON BALL — planets.js  v10
-   · dragon_ball_intro.m4a  → intro "TOCA PARA CONTINUAR"
-   · dragon_ball_intro2.m4a → modo batalla épica
+   DRAGON BALL — planets.js  v12
+   · dragon_ball_intro.m4a  → al cargar página Y al mostrar "TOCA PARA CONTINUAR"
+   · dragon_ball_intro2.m4a → batalla épica
    · kamehameha.m4a         → botón ALEATORIO
-   · transformacion.m4a     → al abrir bio + transformaciones
+   · transformacion.m4a     → transformaciones de personaje
    · volar.m4a              → viaje a planeta
    ═══════════════════════════════════════════ */
 
@@ -11,16 +11,13 @@
   'use strict';
 
   /* ══════════════════════════════════════
-     AUDIOS — todos desde carpeta audios/
+     AUDIOS
   ══════════════════════════════════════ */
   function mkAudio(src, vol) {
     const a = new Audio('audios/' + src);
-    a.preload = 'auto';
-    a.volume  = vol || 0.75;
-    return a;
+    a.preload = 'auto'; a.volume = vol || 0.75; return a;
   }
-
-  const sfxIntro     = mkAudio('dragon_ball_intro.m4a',  0.15);
+  const sfxIntro     = mkAudio('dragon_ball_intro.m4a',  0.3);
   const sfxBattle    = mkAudio('dragon_ball_intro2.m4a', 0.05);
   const sfxKame      = mkAudio('kamehameha.m4a',         0.8);
   const sfxTransform = mkAudio('transformacion.m4a',     0.8);
@@ -29,24 +26,25 @@
   function play(sfx) { try { sfx.currentTime = 0; sfx.play().catch(()=>{}); } catch(e){} }
   function stop(sfx) { try { sfx.pause(); sfx.currentTime = 0; } catch(e){} }
 
-  /* ══════════════════════════════════════
-     PATCH app.js AUDIO REFS
-  ══════════════════════════════════════ */
+  /* ── Audio intro: solo suena en el primer gesto real del usuario ──
+     Los navegadores bloquean autoplay sin interacción previa.
+     Reproducimos en el primer pointerdown sobre el intro. */
+  let introPlayed = false;
+  function tryPlayIntro() {
+    if (introPlayed) return;
+    introPlayed = true;
+    play(sfxIntro);
+  }
+
+  /* Patch app.js audio refs */
   document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('btnRandom');
-    if (btn) {
-      btn.addEventListener('click', () => { play(sfxKame); }, true);
-    }
+    if (btn) btn.addEventListener('click', () => play(sfxKame), true);
   });
-
-  window.addEventListener('load', ()=>{
+  window.addEventListener('load', () => {
     try {
-      if(typeof playKame !== 'undefined'){
-        window.playKame = function(){ play(sfxKame); };
-      }
-      if(typeof playTransform !== 'undefined'){
-        window.playTransform = function(){ play(sfxTransform); };
-      }
+      if (typeof playKame      !== 'undefined') window.playKame      = () => play(sfxKame);
+      if (typeof playTransform !== 'undefined') window.playTransform = () => play(sfxTransform);
     } catch(e){}
   });
 
@@ -54,94 +52,83 @@
      PLANET DATA
   ══════════════════════════════════════ */
   const PLANETS = [
-    {
-      key:'tierra', label:'Planeta Tierra', tag:'SISTEMA SOLAR · SECTOR 7G',
+    { key:'tierra', label:'Planeta Tierra', tag:'SISTEMA SOLAR · SECTOR 7G',
       img:'img/planeta_tierra.png', color:'#78b8ff', R:80, G:160, B:255,
       stats:[{l:'Sistema',v:'Solar'},{l:'Gravedad',v:'10x Estándar'},{l:'Atmósfera',v:'Oxígeno/Nitrógeno'},{l:'Estado',v:'✅ Habitado'}],
-      desc:'La Tierra es el escenario principal de Dragon Ball. Ha sido el centro de batallas que han decidido el destino de universos enteros. Sus guerreros han alcanzado poderes extraordinarios gracias al entrenamiento constante.',
-      chars:['Goku','Krillin','Yamcha','Ten Shin Han','Gohan','Piccolo','Vegeta','Bulma','Androide 18','Maestro Roshi'],
-    },
-    {
-      key:'vegeta', label:'Planeta Vegeta', tag:'SISTEMA SAIYAN · SECTOR NORTE',
+      desc:'La Tierra es el escenario principal de Dragon Ball. Ha sido el centro de batallas que han decidido el destino de universos enteros.',
+      chars:['Goku','Krillin','Yamcha','Ten Shin Han','Gohan','Piccolo','Vegeta','Bulma','Androide 18','Maestro Roshi'] },
+    { key:'vegeta', label:'Planeta Vegeta', tag:'SISTEMA SAIYAN · SECTOR NORTE',
       img:'img/planeta_vegeta.png', color:'#FF8040', R:255, G:75, B:10,
       stats:[{l:'Raza',v:'Saiyans'},{l:'Gravedad',v:'10x la Tierra'},{l:'Destructor',v:'Freezer'},{l:'Estado',v:'💥 Destruido'}],
       desc:'Cuna de la orgullosa raza guerrera Saiyan. Destruido por Freezer de un solo golpe. Su legado vive en cada transformación Super Saiyan.',
-      chars:['Vegeta','Bardock','Rey Vegeta','Broly','Raditz','Nappa','Paragus','Goku (Kakarotto)'],
-    },
-    {
-      key:'namek', label:'Planeta Namek', tag:'SECTOR 9045 · UNIVERSO 7',
+      chars:['Vegeta','Bardock','Rey Vegeta','Broly','Raditz','Nappa','Paragus','Goku (Kakarotto)'] },
+    { key:'namek', label:'Planeta Namek', tag:'SECTOR 9045 · UNIVERSO 7',
       img:'img/planeta_namek.png', color:'#44ff88', R:40, G:220, B:90,
       stats:[{l:'Raza',v:'Namekianos'},{l:'Soles',v:'3 Soles'},{l:'Dragón',v:'Porunga'},{l:'Estado',v:'⚠️ Nuevo Namek'}],
       desc:'Iluminado por tres soles, hogar de los Namekianos. Sus Esferas del Dragón son gobernadas por Porunga. Escenario épico de la batalla contra Freezer.',
-      chars:['Piccolo','Nail','Guru','Dende','Kami','Cargo','Moori','Lord Slug'],
-    },
-    {
-      key:'sadala', label:'Planeta Sadala', tag:'UNIVERSO 6 · SECTOR OMEGA',
+      chars:['Piccolo','Nail','Guru','Dende','Kami','Cargo','Moori','Lord Slug'] },
+    { key:'sadala', label:'Planeta Sadala', tag:'UNIVERSO 6 · SECTOR OMEGA',
       img:'img/planeta_sadala.png', color:'#c8ff40', R:160, G:255, B:30,
       stats:[{l:'Universo',v:'Universo 6'},{l:'Raza',v:'Saiyans U6'},{l:'Estado',v:'✅ Habitado'},{l:'Rival',v:'Planeta Vegeta'}],
-      desc:'Hogar de los Saiyans del Universo 6 que usan sus poderes para el bien. A diferencia del U7, combaten el crimen y protegen a los débiles.',
-      chars:['Cabba','Caulifla','Kale','Renso','Beets'],
-    },
-    {
-      key:'yardrat', label:'Planeta Yardrat', tag:'GALAXIA DEL NORTE · CUADRANTE ESTE',
+      desc:'Hogar de los Saiyans del Universo 6 que usan sus poderes para el bien.',
+      chars:['Cabba','Caulifla','Kale','Renso','Beets'] },
+    { key:'yardrat', label:'Planeta Yardrat', tag:'GALAXIA DEL NORTE · CUADRANTE ESTE',
       img:'img/planeta_yardrat.png', color:'#ff60c0', R:220, G:50, B:180,
       stats:[{l:'Raza',v:'Yardratians'},{l:'Técnica',v:'Transmisión Instantánea'},{l:'Estado',v:'✅ Habitado'}],
-      desc:'Donde Goku aprendió la Transmisión Instantánea tras la batalla en Namek. Los Yardratians dominan técnicas espirituales sin igual.',
-      chars:['Goku','Steth','Pybara'],
-    },
+      desc:'Donde Goku aprendió la Transmisión Instantánea tras la batalla en Namek.',
+      chars:['Goku','Steth','Pybara'] },
   ];
 
   function getChars() { return (typeof chars !== 'undefined' && chars.length) ? chars : []; }
   function fmtKiC(v) {
-    if(!v) return '?';
+    if (!v) return '?';
     const n = typeof v==='string' ? parseInt(v.replace(/,/g,'')) : Number(v);
-    if(isNaN(n)) return String(v).slice(0,8);
-    if(n>=1e12) return (n/1e12).toFixed(1)+'T';
-    if(n>=1e9)  return (n/1e9).toFixed(1)+'B';
-    if(n>=1e6)  return (n/1e6).toFixed(1)+'M';
-    if(n>=1e3)  return (n/1e3).toFixed(1)+'K';
+    if (isNaN(n)) return String(v).slice(0,8);
+    if (n>=1e12) return (n/1e12).toFixed(1)+'T';
+    if (n>=1e9)  return (n/1e9).toFixed(1)+'B';
+    if (n>=1e6)  return (n/1e6).toFixed(1)+'M';
+    if (n>=1e3)  return (n/1e3).toFixed(1)+'K';
     return n;
   }
   function parseKiNum(v) {
-    if(!v) return Math.random()*1000;
+    if (!v) return Math.random()*1000;
     const s = String(v).replace(/,/g,'').toUpperCase();
     const n = parseFloat(s);
-    if(isNaN(n)) return Math.random()*1000;
-    if(s.includes('T')) return n*1e12; if(s.includes('B')) return n*1e9;
-    if(s.includes('M')) return n*1e6;  if(s.includes('K')) return n*1e3;
+    if (isNaN(n)) return Math.random()*1000;
+    if (s.includes('T')) return n*1e12;
+    if (s.includes('B')) return n*1e9;
+    if (s.includes('M')) return n*1e6;
+    if (s.includes('K')) return n*1e3;
     return n;
   }
 
   /* ══════════════════════════════════════
-     INTRO — bolas orbitando + audio intro
+     INTRO
   ══════════════════════════════════════ */
-  const introEl = document.createElement('div');
-  introEl.id = 'dbIntro';
-
-  const introStars = document.createElement('canvas');
-  introStars.id = 'introStarsCanvas';
+  const introEl = document.createElement('div'); introEl.id = 'dbIntro';
+  const introStars = document.createElement('canvas'); introStars.id = 'introStarsCanvas';
   introEl.appendChild(introStars);
-
-  const ringsDiv = document.createElement('div');
-  ringsDiv.id = 'introRings';
+  const ringsDiv = document.createElement('div'); ringsDiv.id = 'introRings';
   [380,520,680].forEach((s,i)=>{
     const r=document.createElement('div'); r.className='i-ring';
     r.style.cssText=`width:${s}px;height:${s}px;animation-delay:${i*2}s;animation-duration:${6+i*1.5}s`;
     ringsDiv.appendChild(r);
   });
   introEl.appendChild(ringsDiv);
-
-  const orbitCanvas = document.createElement('canvas');
-  orbitCanvas.id = 'dbOrbitCanvas';
+  const orbitCanvas = document.createElement('canvas'); orbitCanvas.id = 'dbOrbitCanvas';
   introEl.appendChild(orbitCanvas);
-
   const titleEl = document.createElement('div'); titleEl.id='introTitle'; titleEl.textContent='Dragon Ball Universe';
   const subEl   = document.createElement('div'); subEl.id='introSub';   subEl.textContent='Universo · Sistema Solar';
   const hintEl  = document.createElement('div'); hintEl.id='introHint'; hintEl.textContent='— TOCA PARA CONTINUAR —';
   introEl.appendChild(titleEl); introEl.appendChild(subEl); introEl.appendChild(hintEl);
   document.body.appendChild(introEl);
 
-  // Stars
+  /* ── Reproducir intro en el primer toque real sobre el intro ── */
+  introEl.addEventListener('pointerdown', function onFirstTouch() {
+    tryPlayIntro();
+    introEl.removeEventListener('pointerdown', onFirstTouch);
+  });
+
   const sc = introStars.getContext('2d');
   function resizeIS(){ introStars.width=window.innerWidth; introStars.height=window.innerHeight; }
   resizeIS(); window.addEventListener('resize', resizeIS);
@@ -159,7 +146,6 @@
   }
   drawIS();
 
-  // Orbit
   const oc=orbitCanvas.getContext('2d');
   const OW=320,OH=180; orbitCanvas.width=OW; orbitCanvas.height=OH;
   orbitCanvas.style.cssText='display:block;margin:0 auto;';
@@ -196,7 +182,8 @@
       ctx.beginPath();
       for(let i=0;i<5;i++){
         const a=(i*4*Math.PI/5)-Math.PI/2,a2=a+2*Math.PI/5,ro=r*.13,ri=r*.055;
-        if(i===0)ctx.moveTo(sx+ro*Math.cos(a),sy+ro*Math.sin(a)); else ctx.lineTo(sx+ro*Math.cos(a),sy+ro*Math.sin(a));
+        if(i===0) ctx.moveTo(sx+ro*Math.cos(a),sy+ro*Math.sin(a));
+        else ctx.lineTo(sx+ro*Math.cos(a),sy+ro*Math.sin(a));
         ctx.lineTo(sx+ri*Math.cos(a2),sy+ri*Math.sin(a2));
       }
       ctx.closePath(); ctx.fill();
@@ -218,7 +205,7 @@
       });
       oc.save(); oc.globalAlpha=.07*eased; oc.strokeStyle='#FFD700'; oc.lineWidth=1;
       oc.beginPath(); oc.ellipse(OCX,OCY,ORBIT_RX,ORBIT_RY,0,0,Math.PI*2); oc.stroke(); oc.restore();
-      balls.forEach(b=>{ const x=OCX+Math.cos(b.angle+orbitAngle)*ORBIT_RX, y=OCY+Math.sin(b.angle+orbitAngle)*ORBIT_RY; drawSingleBall(oc,b.stars,x,y,BALL_R,b.alpha,b.scale); });
+      balls.forEach(b=>{ const x=OCX+Math.cos(b.angle+orbitAngle)*ORBIT_RX,y=OCY+Math.sin(b.angle+orbitAngle)*ORBIT_RY; drawSingleBall(oc,b.stars,x,y,BALL_R,b.alpha,b.scale); });
       if(prog>=1){
         orbitPhase=1; phaseTimer=0;
         setTimeout(()=>{
@@ -226,7 +213,7 @@
           setTimeout(()=>subEl.classList.add('show'),350);
           setTimeout(()=>{
             hintEl.classList.add('show');
-            if(!hintShown){ hintShown=true; play(sfxIntro); }
+            hintShown = true;
           },800);
         },80);
       }
@@ -234,7 +221,7 @@
       orbitAngle+=dt*.52;
       oc.save(); oc.globalAlpha=.09; oc.strokeStyle='#FFD700'; oc.lineWidth=1;
       oc.beginPath(); oc.ellipse(OCX,OCY,ORBIT_RX,ORBIT_RY,0,0,Math.PI*2); oc.stroke(); oc.restore();
-      balls.forEach(b=>{ const x=OCX+Math.cos(b.angle+orbitAngle)*ORBIT_RX, y=OCY+Math.sin(b.angle+orbitAngle)*ORBIT_RY; drawSingleBall(oc,b.stars,x,y,BALL_R,1,1); });
+      balls.forEach(b=>{ const x=OCX+Math.cos(b.angle+orbitAngle)*ORBIT_RX,y=OCY+Math.sin(b.angle+orbitAngle)*ORBIT_RY; drawSingleBall(oc,b.stars,x,y,BALL_R,1,1); });
     }
   }
 
@@ -253,12 +240,9 @@
   /* ══════════════════════════════════════
      PANEL PLANETAS — derecha
   ══════════════════════════════════════ */
-  const planetPanel = document.createElement('div');
-  planetPanel.id = 'planetPanel';
+  const planetPanel = document.createElement('div'); planetPanel.id = 'planetPanel';
   document.body.appendChild(planetPanel);
-
-  const ppTitle = document.createElement('div');
-  ppTitle.id = 'planetPanelTitle'; ppTitle.textContent='PLANETAS';
+  const ppTitle = document.createElement('div'); ppTitle.id='planetPanelTitle'; ppTitle.textContent='PLANETAS';
   planetPanel.appendChild(ppTitle);
 
   PLANETS.forEach(p=>{
@@ -283,48 +267,70 @@
   });
 
   /* ══════════════════════════════════════
-     BOTÓN COMBATE FLOTANTE — izquierda
+     BOTÓN COMBATE FLOTANTE
   ══════════════════════════════════════ */
   const combatBtn = document.createElement('button');
-  combatBtn.id = 'combatFloatBtn';
-  combatBtn.innerHTML = '⚔';
-  combatBtn.title = 'Combate';
+  combatBtn.id = 'combatFloatBtn'; combatBtn.innerHTML = '⚔'; combatBtn.title = 'Combate';
   document.body.appendChild(combatBtn);
 
   /* ══════════════════════════════════════
      OVERLAY SELECTOR DE COMBATE
+     — imagen completa del personaje, sin círculo
   ══════════════════════════════════════ */
   const combatOverlay = document.createElement('div');
   combatOverlay.id = 'combatSelectorOverlay';
   combatOverlay.innerHTML = `
     <div id="combatSelectorCard">
       <button id="combatSelectorClose">✕</button>
-      <div id="csoTitle">⚔ COMBATE</div>
-      <div id="csoSub">Elige tus guerreros</div>
-      <div id="csoSlots">
-        <div class="cso-slot">
-          <div class="cso-label">GUERRERO 1</div>
-          <div class="cso-avatar" id="csoAvatarA"><span>?</span></div>
-          <div class="cso-name"  id="csoNameA">—</div>
-          <div class="cso-ki"    id="csoKiA"></div>
-          <div style="position:relative;width:100%">
-            <input id="csoInputA" class="cso-input" placeholder="Buscar guerrero 1...">
-            <div id="csoDropA" class="cso-drop"></div>
+      <div id="csoHeader">
+        <div id="csoTitle">⚔ COMBATE</div>
+        <div id="csoSub">Elige tus guerreros y que empiece la batalla</div>
+      </div>
+      <div id="csoArena">
+
+        <!-- FIGHTER A -->
+        <div class="cso-fighter" id="csoFighterA">
+          <div class="cso-fighter-spotlight" id="csoSpotA"></div>
+          <div class="cso-fighter-img-wrap" id="csoWrapA">
+            <img class="cso-fighter-img" id="csoImgA" src="" alt="" style="display:none">
+            <div class="cso-fighter-placeholder" id="csoPH_A">?</div>
           </div>
-          <button class="cso-rand" id="csoRandA">🎲 Aleatorio</button>
-        </div>
-        <div id="csoVS">VS</div>
-        <div class="cso-slot">
-          <div class="cso-label">GUERRERO 2</div>
-          <div class="cso-avatar" id="csoAvatarB"><span>?</span></div>
-          <div class="cso-name"  id="csoNameB">—</div>
-          <div class="cso-ki"    id="csoKiB"></div>
-          <div style="position:relative;width:100%">
-            <input id="csoInputB" class="cso-input" placeholder="Buscar guerrero 2...">
-            <div id="csoDropB" class="cso-drop"></div>
+          <div class="cso-fighter-label">GUERRERO 1</div>
+          <div class="cso-fighter-name" id="csoNameA">— ELIGE —</div>
+          <div class="cso-fighter-ki"   id="csoKiA"></div>
+          <div class="cso-controls">
+            <div class="cso-search-wrap">
+              <input class="cso-input" id="csoInputA" placeholder="Buscar...">
+              <div class="cso-drop" id="csoDropA"></div>
+            </div>
+            <button class="cso-rand" id="csoRandA">🎲 Aleatorio</button>
           </div>
-          <button class="cso-rand" id="csoRandB">🎲 Aleatorio</button>
         </div>
+
+        <!-- VS -->
+        <div id="csoVSBlock">
+          <div id="csoVS">VS</div>
+        </div>
+
+        <!-- FIGHTER B -->
+        <div class="cso-fighter" id="csoFighterB">
+          <div class="cso-fighter-spotlight" id="csoSpotB"></div>
+          <div class="cso-fighter-img-wrap" id="csoWrapB">
+            <img class="cso-fighter-img" id="csoImgB" src="" alt="" style="display:none">
+            <div class="cso-fighter-placeholder" id="csoPH_B">?</div>
+          </div>
+          <div class="cso-fighter-label">GUERRERO 2</div>
+          <div class="cso-fighter-name" id="csoNameB">— ELIGE —</div>
+          <div class="cso-fighter-ki"   id="csoKiB"></div>
+          <div class="cso-controls">
+            <div class="cso-search-wrap">
+              <input class="cso-input" id="csoInputB" placeholder="Buscar...">
+              <div class="cso-drop" id="csoDropB"></div>
+            </div>
+            <button class="cso-rand" id="csoRandB">🎲 Aleatorio</button>
+          </div>
+        </div>
+
       </div>
       <button id="csoFightBtn">⚡ ¡¡ LUCHAR !!</button>
     </div>`;
@@ -338,57 +344,64 @@
       if (!fighterB) randomFighter('B');
     }
   });
-
-  document.getElementById('combatSelectorClose').addEventListener('click', () => {
-    combatOverlay.classList.remove('open');
-  });
-  combatOverlay.addEventListener('pointerdown', e => {
-    if (e.target === combatOverlay) combatOverlay.classList.remove('open');
-  });
+  document.getElementById('combatSelectorClose').addEventListener('click', () => combatOverlay.classList.remove('open'));
+  combatOverlay.addEventListener('pointerdown', e => { if (e.target === combatOverlay) combatOverlay.classList.remove('open'); });
 
   let fighterA=null, fighterB=null;
 
   function setCombatFighter(slot, char){
-    if(slot==='A'){
-      fighterA=char;
-      document.getElementById('csoAvatarA').innerHTML=char.image?`<img src="${char.image}" onerror="this.style.opacity='.1'">`:'<span>?</span>';
-      document.getElementById('csoNameA').textContent=char.name;
-      document.getElementById('csoKiA').textContent=char.maxKi?`Ki: ${fmtKiC(char.maxKi)}`:'';
+    const imgEl  = document.getElementById(`csoImg${slot}`);
+    const phEl   = document.getElementById(`csoPH_${slot}`);
+    const nameEl = document.getElementById(`csoName${slot}`);
+    const kiEl   = document.getElementById(`csoKi${slot}`);
+    const spotEl = document.getElementById(`csoSpot${slot}`);
+
+    if (slot==='A') fighterA=char; else fighterB=char;
+
+    if (char.image) {
+      imgEl.src = char.image;
+      imgEl.style.display = 'block';
+      phEl.style.display  = 'none';
+      imgEl.onerror = () => { imgEl.style.display='none'; phEl.style.display='flex'; };
     } else {
-      fighterB=char;
-      document.getElementById('csoAvatarB').innerHTML=char.image?`<img src="${char.image}" onerror="this.style.opacity='.1'">`:'<span>?</span>';
-      document.getElementById('csoNameB').textContent=char.name;
-      document.getElementById('csoKiB').textContent=char.maxKi?`Ki: ${fmtKiC(char.maxKi)}`:'';
+      imgEl.style.display = 'none';
+      phEl.style.display  = 'flex';
     }
+    nameEl.textContent = char.name.toUpperCase();
+    kiEl.textContent   = char.maxKi ? `Ki: ${fmtKiC(char.maxKi)}` : (char.ki ? `Ki: ${fmtKiC(char.ki)}` : '');
+
+    /* spotlight color: A = azul, B = rojo-naranja */
+    const col = slot==='A' ? '80,160,255' : '255,80,20';
+    spotEl.style.background = `radial-gradient(ellipse 80% 60% at 50% 100%, rgba(${col},.55) 0%, transparent 75%)`;
   }
 
   function randomFighter(slot){
     const list=getChars(); if(!list.length) return;
     let pick;
-    do{ pick=list[Math.floor(Math.random()*list.length)]; }
+    do { pick=list[Math.floor(Math.random()*list.length)]; }
     while(list.length>1&&((slot==='A'&&pick===fighterB)||(slot==='B'&&pick===fighterA)));
     setCombatFighter(slot,pick);
   }
 
-  document.getElementById('csoRandA').addEventListener('click',()=>randomFighter('A'));
-  document.getElementById('csoRandB').addEventListener('click',()=>randomFighter('B'));
+  document.getElementById('csoRandA').addEventListener('click', ()=>randomFighter('A'));
+  document.getElementById('csoRandB').addEventListener('click', ()=>randomFighter('B'));
 
-  document.getElementById('csoFightBtn').addEventListener('click',()=>{
-    if(!fighterA) randomFighter('A');
-    if(!fighterB) randomFighter('B');
+  /* ── LUCHAR: animación de viaje → batalla ── */
+  document.getElementById('csoFightBtn').addEventListener('click', ()=>{
+    if (!fighterA) randomFighter('A');
+    if (!fighterB) randomFighter('B');
     combatOverlay.classList.remove('open');
-    setTimeout(startEpicBattle, 150);
+    setTimeout(() => travelToBattle(startEpicBattle), 150);
   });
 
   function buildCsoDrop(inputId, dropId, slot){
-    const inp  = document.getElementById(inputId);
-    const drop = document.getElementById(dropId);
-    let pointer = false;
+    const inp=document.getElementById(inputId), drop=document.getElementById(dropId);
+    let pointer=false;
     inp.addEventListener('input', ()=>{
       const q=inp.value.trim().toLowerCase();
       if(!q){ drop.innerHTML=''; drop.classList.remove('open'); return; }
       const list=getChars();
-      const matches=list.filter(c=>c.name?.toLowerCase().includes(q)).slice(0,6);
+      const matches=list.filter(c=>c.name?.toLowerCase().includes(q)).slice(0,7);
       if(!matches.length){ drop.innerHTML=''; drop.classList.remove('open'); return; }
       drop.innerHTML=matches.map(c=>
         `<div class="cso-drop-item" data-id="${c.id||c._id}">
@@ -406,54 +419,191 @@
         });
       });
     });
-    inp.addEventListener('blur',()=>setTimeout(()=>{
-      if(!pointer){ drop.innerHTML=''; drop.classList.remove('open'); }
-      pointer=false;
-    },120));
+    inp.addEventListener('blur',()=>setTimeout(()=>{ if(!pointer){drop.innerHTML='';drop.classList.remove('open');} pointer=false; },120));
   }
   buildCsoDrop('csoInputA','csoDropA','A');
   buildCsoDrop('csoInputB','csoDropB','B');
 
   /* ══════════════════════════════════════
-     EPIC BATTLE MODE — pantalla completa
+     ANIMACIÓN VIAJE AL RING DE COMBATE
+     Warp de estrellas + texto antes de la batalla
+  ══════════════════════════════════════ */
+  function travelToBattle(onReady) {
+    const trav = document.createElement('div');
+    trav.id = 'battleTravelOverlay';
+    trav.style.cssText = `
+      position:fixed;inset:0;z-index:98500;background:#000;
+      display:flex;align-items:center;justify-content:center;overflow:hidden;
+    `;
+
+    const cv = document.createElement('canvas');
+    cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+    trav.appendChild(cv);
+
+    /* Texto central */
+    const label = document.createElement('div');
+    label.style.cssText = `
+      position:absolute;font-family:'Bangers',cursive;
+      font-size:clamp(1.2rem,5vw,3rem);letter-spacing:8px;
+      color:#FFD700;text-shadow:0 0 30px rgba(255,215,0,.9),0 0 60px rgba(255,107,0,.6);
+      text-transform:uppercase;opacity:0;transition:opacity .5s;
+      bottom:22%;left:50%;transform:translateX(-50%);white-space:nowrap;
+      text-align:center;
+    `;
+    label.textContent = '⚡ AL RING DE COMBATE ⚡';
+    trav.appendChild(label);
+
+    /* Nombres de los luchadores */
+    const fighters = document.createElement('div');
+    fighters.style.cssText = `
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      display:flex;align-items:center;gap:clamp(1rem,4vw,3rem);
+      opacity:0;transition:opacity .4s .15s;pointer-events:none;
+      flex-wrap:wrap;justify-content:center;
+    `;
+    fighters.innerHTML = `
+      <span style="font-family:'Bangers',cursive;font-size:clamp(1rem,4vw,2.2rem);letter-spacing:4px;
+        color:#5090ff;text-shadow:0 0 20px rgba(80,144,255,.9);white-space:nowrap;">
+        ${fighterA ? fighterA.name.toUpperCase() : '???'}
+      </span>
+      <span style="font-family:'Bangers',cursive;font-size:clamp(1.5rem,6vw,3rem);letter-spacing:6px;
+        color:#FF4400;text-shadow:0 0 25px rgba(255,68,0,.9);animation:vsPulse 1s ease-in-out infinite alternate;">
+        VS
+      </span>
+      <span style="font-family:'Bangers',cursive;font-size:clamp(1rem,4vw,2.2rem);letter-spacing:4px;
+        color:#ff5014;text-shadow:0 0 20px rgba(255,80,20,.9);white-space:nowrap;">
+        ${fighterB ? fighterB.name.toUpperCase() : '???'}
+      </span>
+    `;
+    trav.appendChild(fighters);
+
+    document.body.appendChild(trav);
+
+    cv.width  = window.innerWidth;
+    cv.height = window.innerHeight;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height, CX = W/2, CY = H/2;
+
+    const stars = Array.from({length:600}, () => {
+      const a = Math.random()*Math.PI*2;
+      const d = 5 + Math.random()*Math.min(W,H)*.1;
+      return { a, d, spd: 1.5+Math.random()*4, r: .5+Math.random()*1.5,
+               hue: Math.random()<.25 ? '255,70,0' : Math.random()<.5 ? '255,215,0' : '255,255,255' };
+    });
+
+    let frame = 0, labelShown = false, fightersShown = false;
+    const TOTAL_FRAMES = 160;
+
+    function tick() {
+      frame++;
+      const prog  = Math.min(1, frame / TOTAL_FRAMES);
+      /* ws: velocidad warp — sube rápido, baja al final */
+      const ws    = prog < .6 ? prog / .6 : 1 - (prog - .6) / .4;
+
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+
+      stars.forEach(s => {
+        s.d += s.spd * (3 + ws * 40);
+        if (s.d > Math.max(W,H)) s.d = 3 + Math.random()*20;
+        const x0 = CX + Math.cos(s.a)*s.d;
+        const y0 = CY + Math.sin(s.a)*s.d;
+        const len = s.spd*(5 + ws*90);
+        const x1 = CX + Math.cos(s.a)*(s.d-len);
+        const y1 = CY + Math.sin(s.a)*(s.d-len);
+        const lg = ctx.createLinearGradient(x1,y1,x0,y0);
+        lg.addColorStop(0, `rgba(${s.hue},0)`);
+        lg.addColorStop(1, `rgba(${s.hue},${Math.min(1,.15+ws*.85)})`);
+        ctx.save();
+        ctx.strokeStyle = lg;
+        ctx.lineWidth   = s.r * (1 + ws*2.5);
+        ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x0,y0); ctx.stroke();
+        ctx.restore();
+      });
+
+      /* Destello central al máximo warp */
+      if (ws > .85) {
+        const flare = ctx.createRadialGradient(CX,CY,0,CX,CY,220*(ws-.85)/.15);
+        flare.addColorStop(0, `rgba(255,200,100,${(ws-.85)*.4})`);
+        flare.addColorStop(1, 'transparent');
+        ctx.fillStyle = flare;
+        ctx.beginPath(); ctx.arc(CX,CY,220,0,Math.PI*2); ctx.fill();
+      }
+
+      if (prog > .25 && !fightersShown) { fightersShown = true; fighters.style.opacity = '1'; }
+      if (prog > .45 && !labelShown)    { labelShown = true;    label.style.opacity    = '1'; }
+
+      if (frame < TOTAL_FRAMES) {
+        requestAnimationFrame(tick);
+      } else {
+        label.style.opacity    = '0';
+        fighters.style.opacity = '0';
+        setTimeout(() => { trav.remove(); onReady(); }, 300);
+      }
+    }
+
+    play(sfxVolar);
+    requestAnimationFrame(tick);
+  }
+
+  /* ══════════════════════════════════════
+     EPIC BATTLE — 15 segundos, barras
+     se vacían completamente al morir
+     Fondo: ring_lucha.jpg
   ══════════════════════════════════════ */
   function startEpicBattle(){
     if(!fighterA||!fighterB) return;
+    stop(sfxVolar);
 
-    const kA=parseKiNum(fighterA.maxKi||fighterA.ki);
-    const kB=parseKiNum(fighterB.maxKi||fighterB.ki);
-    const rA=kA*(0.8+Math.random()*0.4);
-    const rB=kB*(0.8+Math.random()*0.4);
-    const diff=Math.abs(rA-rB);
-    const draw=diff<(kA+kB)*.04;
-    const winner=draw?null:(rA>rB?fighterA:fighterB);
-    const loser=draw?null:(rA>rB?fighterB:fighterA);
+    const kA = parseKiNum(fighterA.maxKi||fighterA.ki);
+    const kB = parseKiNum(fighterB.maxKi||fighterB.ki);
+    /* Resultado determinístico con algo de azar */
+    const rA = kA*(0.75+Math.random()*0.5);
+    const rB = kB*(0.75+Math.random()*0.5);
+    const draw   = Math.abs(rA-rB) < (kA+kB)*.03;
+    const winner = draw ? null : (rA>rB ? fighterA : fighterB);
+    const loser  = draw ? null : (rA>rB ? fighterB : fighterA);
 
-    const overlay=document.createElement('div');
-    overlay.id='battleOverlay';
+    /* ── Overlay ── */
+    const overlay = document.createElement('div'); overlay.id='battleOverlay';
 
-    const battleCanvas=document.createElement('canvas');
-    battleCanvas.id='battleCanvas';
+    /* Canvas de partículas (encima del ring) */
+    const battleCanvas = document.createElement('canvas'); battleCanvas.id='battleCanvas';
     overlay.appendChild(battleCanvas);
 
-    overlay.innerHTML+=`
+    /* ── FONDO: imagen del ring de lucha ── */
+    const ringBg = document.createElement('div');
+    ringBg.id = 'battleRingBg';
+    overlay.appendChild(ringBg);
+
+    /* Oscurecedor semitransparente sobre el ring para que resalten los personajes */
+    const ringDim = document.createElement('div');
+    ringDim.style.cssText = `
+      position:absolute;inset:0;z-index:1;
+      background:linear-gradient(to bottom,rgba(0,0,10,.45) 0%,rgba(0,0,10,.25) 40%,rgba(0,0,10,.7) 100%);
+      pointer-events:none;
+    `;
+    overlay.appendChild(ringDim);
+
+    overlay.innerHTML += `
       <div id="battleContent">
+        <div id="battleTimerBar"><div id="battleTimerFill"></div></div>
         <div id="battlePhaseLabel"></div>
         <div id="battleFighters">
           <div class="bf-side" id="bfA">
             <div class="bf-aura" id="bfAuraA"></div>
-            <img class="bf-img" id="bfImgA" src="${fighterA.image||''}" onerror="this.style.opacity='.15'">
-            <div class="bf-name" id="bfNameA">${fighterA.name.toUpperCase()}</div>
-            <div class="bf-ki"   id="bfKiA">${fmtKiC(fighterA.maxKi||fighterA.ki)}</div>
-            <div class="bf-bar-wrap"><div class="bf-bar" id="bfBarA"></div></div>
+            <img class="bf-img" id="bfImgA" src="${fighterA.image||''}" onerror="this.style.opacity='.12'">
+            <div class="bf-name">${fighterA.name.toUpperCase()}</div>
+            <div class="bf-ki">${fmtKiC(fighterA.maxKi||fighterA.ki)}</div>
+            <div class="bf-bar-wrap"><div class="bf-bar" id="bfBarA" style="width:100%"></div></div>
           </div>
           <div id="bfVS">VS</div>
           <div class="bf-side" id="bfB">
             <div class="bf-aura" id="bfAuraB"></div>
-            <img class="bf-img" id="bfImgB" src="${fighterB.image||''}" onerror="this.style.opacity='.15'">
-            <div class="bf-name" id="bfNameB">${fighterB.name.toUpperCase()}</div>
-            <div class="bf-ki"   id="bfKiB">${fmtKiC(fighterB.maxKi||fighterB.ki)}</div>
-            <div class="bf-bar-wrap"><div class="bf-bar" id="bfBarB"></div></div>
+            <img class="bf-img" id="bfImgB" src="${fighterB.image||''}" onerror="this.style.opacity='.12'">
+            <div class="bf-name">${fighterB.name.toUpperCase()}</div>
+            <div class="bf-ki">${fmtKiC(fighterB.maxKi||fighterB.ki)}</div>
+            <div class="bf-bar-wrap"><div class="bf-bar" id="bfBarB" style="width:100%"></div></div>
           </div>
         </div>
         <div id="battleResult"></div>
@@ -461,112 +611,141 @@
       </div>`;
 
     document.body.appendChild(overlay);
-    requestAnimationFrame(()=> overlay.classList.add('open'));
-
+    requestAnimationFrame(()=>overlay.classList.add('open'));
     play(sfxBattle);
 
+    /* Canvas partículas */
     const bc=document.getElementById('battleCanvas');
     const bctx=bc.getContext('2d');
     bc.width=window.innerWidth; bc.height=window.innerHeight;
     const BW=bc.width, BH=bc.height;
 
     const colA=[80,140,255], colB=[255,60,20];
-    document.getElementById('bfAuraA').style.background=`radial-gradient(circle,rgba(${colA.join(',')}, .5) 0%,transparent 70%)`;
-    document.getElementById('bfAuraB').style.background=`radial-gradient(circle,rgba(${colB.join(',')}, .5) 0%,transparent 70%)`;
+    document.getElementById('bfAuraA').style.background=`radial-gradient(circle,rgba(${colA.join(',')}, .55) 0%,transparent 70%)`;
+    document.getElementById('bfAuraB').style.background=`radial-gradient(circle,rgba(${colB.join(',')}, .55) 0%,transparent 70%)`;
 
-    const pts=[];
+    /* ── Lógica de barras ──
+       La batalla dura BATTLE_DURATION ms en total.
+       Dividida en 3 fases: prep (15%), fight (70%), result (15%).
+       Durante fight las barras bajan: el perdedor llega a 0, el ganador queda en 20-40%.
+       En empate ambos llegan a ~5%.
+    */
+    const BATTLE_DURATION = 15000; // 15 segundos
+    const PHASE_PREP_END   = BATTLE_DURATION * 0.15;
+    const PHASE_FIGHT_END  = BATTLE_DURATION * 0.85;
+
+    let barA=100, barB=100;
+    const targetBarWinner = draw ? 5 : 20 + Math.random()*20;
+    const targetBarLoser  = 0;
+    const targetBarA = draw ? 5 : (winner===fighterA ? targetBarWinner : targetBarLoser);
+    const targetBarB = draw ? 5 : (winner===fighterB ? targetBarWinner : targetBarLoser);
+
+    const pts=[], sparks=[];
     function spawnPts(n,side){
       const col=side==='A'?colA:colB;
       for(let i=0;i<n;i++){
         const a=Math.random()*Math.PI*2,s=2+Math.random()*6;
-        pts.push({x:side==='A'?BW*.25:BW*.75, y:BH*.45, vx:Math.cos(a)*s, vy:Math.sin(a)*s-Math.random()*3, r:1+Math.random()*4, alpha:1, decay:.02+Math.random()*.025, col});
+        pts.push({x:side==='A'?BW*.25:BW*.75,y:BH*.45,vx:Math.cos(a)*s,vy:Math.sin(a)*s-Math.random()*3,r:1+Math.random()*4,alpha:1,decay:.018+Math.random()*.022,col});
       }
     }
-
-    const sparks=[];
     function spawnSparks(n){
       for(let i=0;i<n;i++){
         const a=Math.random()*Math.PI*2,s=3+Math.random()*10;
-        sparks.push({x:BW/2,y:BH*.45,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:1.5+Math.random()*4,alpha:1,decay:.025+Math.random()*.03});
+        sparks.push({x:BW/2,y:BH*.45,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:1.5+Math.random()*4,alpha:1,decay:.022+Math.random()*.028});
       }
     }
 
-    let phase=0, phaseT=0, battleRaf;
-    const PHASES=['PREPARACIÓN','ATAQUE','¡¡CHOQUE!!','RESULTADO'];
-    const phaseDurations=[80,90,60,0];
-    let barA=50, barB=50;
-    let resultShown=false;
+    let startTime=null, resultShown=false, battleRaf;
+    const timerFill  = document.getElementById('battleTimerFill');
+    const phaseLabel = document.getElementById('battlePhaseLabel');
 
-    document.getElementById('bfBarA').style.width='50%';
-    document.getElementById('bfBarB').style.width='50%';
+    function battleTick(ts){
+      if(!startTime) startTime=ts;
+      const elapsed    = ts - startTime;
+      const totalProg  = Math.min(1, elapsed / BATTLE_DURATION);
 
-    function battleTick(){
-      phaseT++;
+      /* Timer bar */
+      timerFill.style.width = (100*(1-totalProg))+'%';
+      timerFill.style.background = totalProg < 0.5
+        ? 'linear-gradient(90deg,#00ff88,#FFD700)'
+        : totalProg < 0.8
+          ? 'linear-gradient(90deg,#FFD700,#FF6B00)'
+          : 'linear-gradient(90deg,#FF2200,#660000)';
+
       bctx.clearRect(0,0,BW,BH);
 
-      const bg=bctx.createRadialGradient(BW/2,BH/2,0,BW/2,BH/2,Math.max(BW,BH)*.8);
-      bg.addColorStop(0,'rgba(10,0,30,.0)'); bg.addColorStop(1,'rgba(0,0,10,.85)');
-      bctx.fillStyle=bg; bctx.fillRect(0,0,BW,BH);
+      /* FASE 1 — PREPARACIÓN */
+      if(elapsed < PHASE_PREP_END){
+        phaseLabel.textContent='⚡ PREPARACIÓN';
+        if(Math.random()<.5) spawnPts(3,'A');
+        if(Math.random()<.5) spawnPts(3,'B');
+        barA=100; barB=100;
 
-      if(phase===0){
-        document.getElementById('battlePhaseLabel').textContent=PHASES[0];
-        if(phaseT%4===0) spawnPts(4,'A');
-        if(phaseT%4===0) spawnPts(4,'B');
-        if(phaseT>=phaseDurations[0]){ phase=1; phaseT=0; }
+      /* FASE 2 — COMBATE */
+      } else if(elapsed < PHASE_FIGHT_END){
+        const fightProgress = (elapsed - PHASE_PREP_END) / (PHASE_FIGHT_END - PHASE_PREP_END);
+        phaseLabel.textContent = fightProgress < 0.5 ? '🔥 ¡¡ATAQUE!!' : '💥 ¡¡CHOQUE!!';
 
-      } else if(phase===1){
-        document.getElementById('battlePhaseLabel').textContent=PHASES[1];
-        if(phaseT%3===0){ spawnPts(6,'A'); spawnPts(6,'B'); }
-        const t=phaseT/phaseDurations[1];
-        if(draw){
-          barA=50; barB=50;
-        } else if(winner===fighterA){
-          barA=50+t*35; barB=50-t*35;
+        barA = 100 + (targetBarA - 100) * fightProgress;
+        barB = 100 + (targetBarB - 100) * fightProgress;
+
+        const intensity = Math.floor(2 + fightProgress*8);
+        if(Math.random()<.7) spawnPts(intensity,'A');
+        if(Math.random()<.7) spawnPts(intensity,'B');
+
+        if(fightProgress > 0.45 && fightProgress < 0.55){
+          if(Math.random()<.2) spawnSparks(8);
+        }
+        if(fightProgress > 0.48 && fightProgress < 0.52){
+          const shk=(0.52-fightProgress)*20;
+          document.getElementById('battleContent').style.transform=
+            `translate(${(Math.random()-.5)*shk}px,${(Math.random()-.5)*shk}px)`;
         } else {
-          barA=50-t*35; barB=50+t*35;
+          document.getElementById('battleContent').style.transform='';
         }
-        document.getElementById('bfBarA').style.width=Math.max(10,barA)+'%';
-        document.getElementById('bfBarB').style.width=Math.max(10,barB)+'%';
-        document.getElementById('bfBarA').style.background=barA>=barB?'linear-gradient(90deg,#FFD700,#FF6B00)':'linear-gradient(90deg,#FF2200,#660000)';
-        document.getElementById('bfBarB').style.background=barB>=barA?'linear-gradient(90deg,#FFD700,#FF6B00)':'linear-gradient(90deg,#FF2200,#660000)';
-        if(phaseT>=phaseDurations[1]){ phase=2; phaseT=0; }
 
-      } else if(phase===2){
-        document.getElementById('battlePhaseLabel').textContent=PHASES[2];
-        if(phaseT<15) spawnSparks(12+phaseT*2);
-        if(phaseT%2===0){ spawnPts(8,'A'); spawnPts(8,'B'); }
-        const shk=(1-phaseT/phaseDurations[2])*8;
-        document.getElementById('battleContent').style.transform=
-          phaseT<30?`translate(${(Math.random()-.5)*shk}px,${(Math.random()-.5)*shk}px)`:'';
-        if(phaseT===1){
-          bctx.fillStyle='rgba(255,255,255,.7)'; bctx.fillRect(0,0,BW,BH);
-        }
-        if(phaseT>=phaseDurations[2]){ phase=3; phaseT=0; document.getElementById('battleContent').style.transform=''; }
+        document.getElementById('bfBarA').style.width = Math.max(0,barA)+'%';
+        document.getElementById('bfBarB').style.width = Math.max(0,barB)+'%';
+        document.getElementById('bfBarA').style.background = barA > 40
+          ? 'linear-gradient(90deg,#FFD700,#FF6B00)'
+          : barA > 15
+            ? 'linear-gradient(90deg,#FF8000,#FF2200)'
+            : 'linear-gradient(90deg,#FF0000,#440000)';
+        document.getElementById('bfBarB').style.background = barB > 40
+          ? 'linear-gradient(90deg,#FFD700,#FF6B00)'
+          : barB > 15
+            ? 'linear-gradient(90deg,#FF8000,#FF2200)'
+            : 'linear-gradient(90deg,#FF0000,#440000)';
 
-      } else if(phase===3){
+      /* FASE 3 — RESULTADO */
+      } else {
+        document.getElementById('bfBarA').style.width = Math.max(0,targetBarA)+'%';
+        document.getElementById('bfBarB').style.width = Math.max(0,targetBarB)+'%';
+        document.getElementById('battleContent').style.transform='';
+
         if(!resultShown){
           resultShown=true;
-          document.getElementById('battlePhaseLabel').textContent=PHASES[3];
+          phaseLabel.textContent='🏆 RESULTADO';
           const resEl=document.getElementById('battleResult');
           if(draw){
             resEl.innerHTML='<span class="br-draw">¡¡ EMPATE ÉPICO !!</span>';
           } else {
-            resEl.innerHTML=`<span class="br-winner">🏆 ${winner.name.toUpperCase()} GANA</span><br><span class="br-loser">⚔ ${loser.name.toUpperCase()} ha sido derrotado</span>`;
-            const winSide=winner===fighterA?'bfA':'bfB';
-            document.getElementById(winSide).classList.add('bf-winner');
-            const loseSide=loser===fighterA?'bfA':'bfB';
-            document.getElementById(loseSide).classList.add('bf-loser');
+            resEl.innerHTML=`<span class="br-winner">🏆 ${winner.name.toUpperCase()} GANA</span><br><span class="br-loser">💀 ${loser.name.toUpperCase()} ha sido derrotado</span>`;
+            document.getElementById(winner===fighterA?'bfA':'bfB').classList.add('bf-winner');
+            document.getElementById(loser===fighterA?'bfA':'bfB').classList.add('bf-loser');
           }
           resEl.classList.add('show');
           document.getElementById('battleClose').classList.add('show');
         }
-        if(phaseT%5===0){ spawnPts(2,'A'); spawnPts(2,'B'); }
+        if(Math.random()<.25) spawnPts(2,'A');
+        if(Math.random()<.25) spawnPts(2,'B');
       }
 
+      /* Dibujar partículas */
       for(let i=pts.length-1;i>=0;i--){
         const p=pts[i];
         p.x+=p.vx; p.y+=p.vy; p.vx*=.93; p.vy=p.vy*.93+.08; p.alpha-=p.decay;
-        if(p.alpha<=0){ pts.splice(i,1); continue; }
+        if(p.alpha<=0){pts.splice(i,1);continue;}
         bctx.save(); bctx.globalAlpha=p.alpha;
         const pg=bctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*2.5);
         pg.addColorStop(0,`rgba(${p.col.join(',')},1)`); pg.addColorStop(.5,`rgba(${p.col.join(',')}, .6)`); pg.addColorStop(1,'transparent');
@@ -575,7 +754,7 @@
       for(let i=sparks.length-1;i>=0;i--){
         const s=sparks[i];
         s.x+=s.vx; s.y+=s.vy; s.vx*=.9; s.vy*=.9; s.alpha-=s.decay;
-        if(s.alpha<=0){ sparks.splice(i,1); continue; }
+        if(s.alpha<=0){sparks.splice(i,1);continue;}
         bctx.save(); bctx.globalAlpha=s.alpha;
         const sg=bctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*2.5);
         sg.addColorStop(0,'rgba(255,255,220,1)'); sg.addColorStop(.4,'rgba(255,215,0,.8)'); sg.addColorStop(1,'transparent');
@@ -610,10 +789,9 @@
   }
 
   /* ══════════════════════════════════════
-     TRAVEL ANIMATION — solo audio volar
+     TRAVEL ANIMATION (planetas)
   ══════════════════════════════════════ */
-  const travelOverlay=document.createElement('div');
-  travelOverlay.id='travelOverlay';
+  const travelOverlay=document.createElement('div'); travelOverlay.id='travelOverlay';
   travelOverlay.innerHTML=`
     <canvas id="travelCanvas"></canvas>
     <div id="travelUI">
@@ -632,25 +810,24 @@
     document.getElementById('travelPlanetImg').src=planet.img;
     travelOverlay.classList.add('open');
     document.body.style.overflow='hidden';
-    play(sfxVolar); // ← solo volar, sin transformacion
+    play(sfxVolar);
 
     const canvas=document.getElementById('travelCanvas');
     const ctx=canvas.getContext('2d');
     canvas.width=window.innerWidth; canvas.height=window.innerHeight;
     const W=canvas.width,H=canvas.height,CX=W/2,CY=H/2;
     const stars=Array.from({length:500},()=>{
-      const angle=Math.random()*Math.PI*2, dist=10+Math.random()*Math.min(W,H)*.1;
-      return{angle,dist,speed:1+Math.random()*3,r:.5+Math.random()*1.5,
-             hue:Math.random()<.15?`${planet.R},${planet.G},${planet.B}`:'255,255,255'};
+      const angle=Math.random()*Math.PI*2,dist=10+Math.random()*Math.min(W,H)*.1;
+      return{angle,dist,speed:1+Math.random()*3,r:.5+Math.random()*1.5,hue:Math.random()<.15?`${planet.R},${planet.G},${planet.B}`:'255,255,255'};
     });
     let frame=0,uiShown=false;
 
     function travelTick(){
       frame++;
       ctx.clearRect(0,0,W,H);
-      const prog=frame/160, eased=prog<.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
+      const prog=frame/160,eased=prog<.5?2*prog*prog:1-Math.pow(-2*prog+2,2)/2;
       const bg=ctx.createRadialGradient(CX,CY,0,CX,CY,Math.max(W,H)*.8);
-      bg.addColorStop(0,'rgba(0,0,10,.0)'); bg.addColorStop(1,'rgba(0,0,10,.95)');
+      bg.addColorStop(0,'rgba(10,0,30,.0)'); bg.addColorStop(1,'rgba(0,0,10,.88)');
       ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
       const ws=eased<.65?eased/.65:1-(eased-.65)/.35;
       stars.forEach(s=>{
@@ -666,11 +843,11 @@
       if(eased>.55){
         const ap=(eased-.55)/.45;
         const aura=ctx.createRadialGradient(CX,CY,0,CX,CY,280*ap);
-        aura.addColorStop(0,`rgba(${planet.R},${planet.G},${planet.B},${ap*.35})`);
-        aura.addColorStop(1,'transparent');
+        aura.addColorStop(0,`rgba(${planet.R},${planet.G},${planet.B},${ap*.35})`); aura.addColorStop(1,'transparent');
         ctx.fillStyle=aura; ctx.beginPath(); ctx.arc(CX,CY,280*ap,0,Math.PI*2); ctx.fill();
       }
-      if(eased>.6&&!uiShown){ uiShown=true;
+      if(eased>.6&&!uiShown){
+        uiShown=true;
         document.getElementById('travelPlanetTag').classList.add('show');
         document.getElementById('travelPlanetImgWrap').classList.add('show');
         setTimeout(()=>document.getElementById('travelPlanetName').classList.add('show'),200);
@@ -691,10 +868,9 @@
   }
 
   /* ══════════════════════════════════════
-     PLANET DETAIL — SIN audio transformacion
+     PLANET DETAIL
   ══════════════════════════════════════ */
-  const detailEl=document.createElement('div');
-  detailEl.id='planetDetailOverlay';
+  const detailEl=document.createElement('div'); detailEl.id='planetDetailOverlay';
   detailEl.innerHTML=`
     <div id="pdCard">
       <div id="pdImgWrap"><div id="pdImgAura"></div><img id="pdImg" src="" alt=""></div>
@@ -711,7 +887,6 @@
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDetail(); });
 
   function openDetail(p){
-    // Sin play(sfxTransform) — solo se abre el detalle
     const img=document.getElementById('pdImg'); img.src=p.img; img.alt=p.label;
     img.onerror=()=>{ img.style.display='none'; document.getElementById('pdImgWrap').style.background=`radial-gradient(circle at 50% 50%,rgba(${p.R},${p.G},${p.B},.4) 0%,rgba(2,0,10,.95) 70%)`; };
     document.getElementById('pdImgAura').style.background=`radial-gradient(circle,rgba(${p.R},${p.G},${p.B},.45) 0%,transparent 68%)`;
@@ -724,7 +899,8 @@
     document.getElementById('pdChars').innerHTML=p.chars.map(c=>`<span class="pd-char" data-char="${c}">${c}</span>`).join('');
     document.querySelectorAll('.pd-char').forEach(chip=>{
       chip.addEventListener('click',()=>{
-        closeDetail(); setTimeout(()=>{ const inp=document.getElementById('searchInput'); if(inp){ inp.value=chip.dataset.char; inp.dispatchEvent(new Event('input',{bubbles:true})); inp.focus(); } },320);
+        closeDetail();
+        setTimeout(()=>{ const inp=document.getElementById('searchInput'); if(inp){ inp.value=chip.dataset.char; inp.dispatchEvent(new Event('input',{bubbles:true})); inp.focus(); }},320);
       });
     });
     detailEl.classList.add('open'); document.body.style.overflow='hidden';
@@ -732,7 +908,7 @@
   function closeDetail(){ detailEl.classList.remove('open'); document.body.style.overflow=''; }
 
   /* ══════════════════════════════════════
-     RAYOS AMARILLOS — hover transformaciones
+     RAYOS — hover transformaciones
   ══════════════════════════════════════ */
   (()=>{
     const lc=document.createElement('canvas'); lc.id='trLightningCanvas'; document.body.appendChild(lc);
