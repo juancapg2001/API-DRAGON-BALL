@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   DRAGON BALL — planets.css  v12
+   DRAGON BALL — planets.css  v13
    ═══════════════════════════════════════════ */
 
 #planetWrap       { display: none !important; }
@@ -39,7 +39,7 @@
 @keyframes hintBlink{0%,100%{opacity:.25}50%{opacity:1}}
 
 /* ══════════════════════════════════════
-   PANEL PLANETAS — derecha
+   PANEL PLANETAS — derecha (escritorio)
 ══════════════════════════════════════ */
 #planetPanel{
   position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:200;width:195px;
@@ -68,7 +68,7 @@
 .pp-planet:hover .pp-planet-arrow{color:rgba(255,215,0,.8);transform:translateX(2px);}
 
 /* ══════════════════════════════════════
-   BOTÓN FLOTANTE COMBATE
+   BOTÓN FLOTANTE COMBATE (escritorio)
 ══════════════════════════════════════ */
 #combatFloatBtn {
   position: fixed; left: 18px; top: 50%; transform: translateY(-50%);
@@ -87,6 +87,135 @@
 }
 #combatFloatBtn:hover { transform: translateY(-50%) scale(1.14); box-shadow: 0 0 40px rgba(255,80,0,.75); }
 #combatFloatBtn:active { transform: translateY(-50%) scale(.93); }
+
+/* ══════════════════════════════════════
+   BOTONES INFERIORES MÓVIL
+   Solo se muestran en táctil (pointer:coarse)
+══════════════════════════════════════ */
+
+/* Dos botones fijos abajo, centrados */
+#mobileBar {
+  display: none;
+  position: fixed;
+  bottom: 2.8rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  gap: .9rem;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+#mobileBar.active {
+  display: flex;
+  animation: mobileBarIn .6s cubic-bezier(.34,1.3,.64,1);
+}
+@keyframes mobileBarIn {
+  from { opacity:0; transform: translateX(-50%) translateY(30px); }
+  to   { opacity:1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Base compartida de los dos botones */
+.mob-fab {
+  pointer-events: all;
+  width: 58px; height: 58px; border-radius: 50%;
+  border: 2px solid rgba(255,215,0,.35);
+  color: #fff; font-size: 1.55rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.6), 0 0 20px rgba(255,215,0,.12);
+  transition: transform .15s, box-shadow .15s;
+  position: relative;
+}
+.mob-fab:active { transform: scale(.88); }
+
+.mob-fab-label {
+  font-family: 'Bangers', cursive;
+  font-size: .42rem; letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,215,0,.75);
+  line-height: 1;
+}
+
+/* Botón LUCHA */
+#mobileCombatBtn {
+  background: linear-gradient(135deg, #8B0000, #cc0000, #FF6B00);
+  border-color: rgba(255,80,30,.5);
+  box-shadow: 0 0 22px rgba(255,50,0,.45), 0 4px 18px rgba(0,0,0,.65);
+}
+#mobileCombatBtn:active { transform: scale(.88); box-shadow: 0 0 10px rgba(255,50,0,.3); }
+
+/* Botón PLANETAS */
+#mobilePlanetsBtn {
+  background: linear-gradient(135deg, #080620, #14102a);
+  border-color: rgba(255,215,0,.4);
+  box-shadow: 0 0 22px rgba(255,215,0,.18), 0 4px 18px rgba(0,0,0,.65);
+}
+#mobilePlanetsBtn:active { transform: scale(.88); box-shadow: 0 0 10px rgba(255,215,0,.15); }
+
+/* Panel de planetas desplegable desde abajo */
+#mobilePlanetsPanel {
+  display: none;
+  position: fixed;
+  bottom: 8rem;
+  left: 50%; transform: translateX(-50%);
+  z-index: 301;
+  width: min(340px, 92vw);
+  background: linear-gradient(160deg, rgba(8,6,20,.98), rgba(14,10,28,.98));
+  border: 1.5px solid rgba(255,215,0,.22);
+  border-radius: 20px;
+  padding: .8rem .7rem 1rem;
+  box-shadow: 0 0 0 1px rgba(255,215,0,.05), 0 -10px 40px rgba(0,0,0,.8),
+              inset 0 1px 0 rgba(255,215,0,.07);
+  flex-direction: column; gap: .4rem;
+  overflow: hidden;
+}
+#mobilePlanetsPanel::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,#FFD700 25%,#FF6B00 50%,#FFD700 75%,transparent);
+  background-size:200%; animation:panelFlow 3s linear infinite; border-radius:20px 20px 0 0;
+}
+#mobilePlanetsPanel.open {
+  display: flex;
+  animation: mpPanelIn .3s cubic-bezier(.34,1.3,.64,1);
+}
+@keyframes mpPanelIn {
+  from { opacity:0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity:1; transform: translateX(-50%) translateY(0); }
+}
+#mobilePlanetsPanelTitle {
+  font-family:'Bangers',cursive; font-size:.6rem; letter-spacing:4px;
+  color:rgba(255,215,0,.3); text-transform:uppercase; text-align:center; margin-bottom:.2rem;
+}
+
+/* Cada fila de planeta en el panel móvil */
+.mpp-planet {
+  display: flex; align-items: center; gap: .65rem;
+  padding: .5rem .65rem; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.04);
+  background: rgba(255,255,255,.02);
+  cursor: pointer; transition: all .18s;
+}
+.mpp-planet:active {
+  background: rgba(255,215,0,.07);
+  border-color: rgba(255,215,0,.28);
+  transform: scale(.97);
+}
+.mpp-planet-img {
+  width: 40px; height: 40px; border-radius: 50%;
+  object-fit: cover; flex-shrink: 0;
+}
+.mpp-planet-info { flex: 1; min-width: 0; }
+.mpp-planet-name {
+  font-family:'Bangers',cursive; font-size:.82rem; letter-spacing:1.5px;
+  color:rgba(240,230,200,.9); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  line-height:1.1;
+}
+.mpp-planet-sub {
+  font-family:'Rajdhani',sans-serif; font-size:.58rem; letter-spacing:1.5px;
+  text-transform:uppercase; color:rgba(240,230,200,.32); margin-top:.1rem;
+}
+.mpp-planet-arrow { font-size:.8rem; color:rgba(255,215,0,.25); flex-shrink:0; }
 
 /* ══════════════════════════════════════
    OVERLAY SELECTOR COMBATE
@@ -284,7 +413,6 @@
 }
 #csoFightBtn:active { transform: scale(.97) translateY(0); }
 
-/* Fondo degradado animado */
 .cso-fight-bg {
   position: absolute; inset: 0;
   background: linear-gradient(135deg,
@@ -297,7 +425,6 @@
 }
 @keyframes fightBgSlide { 0%{background-position:0%} 100%{background-position:300%} }
 
-/* Brillo deslizante */
 .cso-fight-shine {
   position: absolute; inset: 0; z-index: 3; pointer-events: none;
   background: linear-gradient(105deg,
@@ -308,7 +435,6 @@
 }
 @keyframes fightShine { 0%{background-position:200%} 100%{background-position:-200%} }
 
-/* Chispas decorativas */
 .cso-fight-sparks {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
   overflow: hidden;
@@ -332,7 +458,6 @@
   100% { opacity:0; transform:scale(0) translateY(-18px); }
 }
 
-/* Contenido del botón */
 .cso-fight-content {
   position: relative; z-index: 2;
   display: flex; align-items: center; justify-content: center; gap: .6rem;
@@ -355,16 +480,14 @@
   from { transform: scale(.85); opacity:.7; }
   to   { transform: scale(1.15); opacity:1; }
 }
-.cso-fight-text {
-  letter-spacing: 8px;
-}
+.cso-fight-text { letter-spacing: 8px; }
 
 /* ══════════════════════════════════════
    BOTÓN MUTE / UNMUTE
 ══════════════════════════════════════ */
 #dbMuteBtn {
   position: fixed;
-  bottom: 3.8rem;
+  top: 1rem;
   right: 1rem;
   z-index: 300;
   width: 44px; height: 44px;
@@ -411,19 +534,16 @@
 }
 #battleOverlay.open { display:flex; background:rgba(0,0,12,.15); }
 
-/* Canvas de partículas — encima del ring */
 #battleCanvas { position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3; }
 
-/* ── FONDO DEL RING DE LUCHA ── */
 #battleRingBg {
   position: absolute;
   inset: 0;
   z-index: 0;
   background: url('img/ring_lucha.jpg') center center / cover no-repeat;
-  background-attachment: scroll; /* evita bug en iOS */
+  background-attachment: scroll;
 }
 
-/* Gradiente oscurecedor sobre el ring para que los personajes resalten */
 #battleOverlay > div:nth-child(3) {
   position: absolute; inset: 0; z-index: 1;
   background: linear-gradient(
@@ -443,7 +563,6 @@
 }
 @keyframes battleContentIn{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
 
-/* Timer bar */
 #battleTimerBar {
   width: 100%; height: 10px;
   background: rgba(255,255,255,.08); border-radius: 50px; overflow: hidden;
@@ -582,46 +701,13 @@
 .pd-char{padding:.25rem .75rem;border-radius:50px;border:1px solid rgba(255,215,0,.14);background:rgba(255,215,0,.03);font-family:'Rajdhani',sans-serif;font-size:.74rem;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;color:rgba(240,230,200,.62);cursor:pointer;transition:all .18s;}
 .pd-char:hover{border-color:#FFD700;color:#FFD700;background:rgba(255,215,0,.07);}
 
-/* Personajes que NO están en la API — en gris, con tooltip y bio propia al clicar */
-.pd-char-extra {
-  position: relative;
-  border-color: rgba(180,180,200,.18);
-  background: rgba(255,255,255,.015);
-  color: rgba(200,200,220,.38);
-}
-.pd-char-extra:hover {
-  border-color: rgba(180,160,255,.45);
-  color: rgba(210,190,255,.8);
-  background: rgba(140,100,255,.07);
-}
-.pd-char-extra::after {
-  content: 'Bio propia · no en la API';
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%; transform: translateX(-50%);
-  background: rgba(10,8,24,.96);
-  border: 1px solid rgba(140,100,255,.3);
-  color: rgba(200,180,255,.75);
-  font-family: 'Rajdhani', sans-serif;
-  font-size: .58rem; letter-spacing: 1.5px;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: .22rem .55rem;
-  border-radius: 6px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity .18s;
-  z-index: 10;
-}
-.pd-char-extra:hover::after { opacity: 1; }
-
 /* ══════════════════════════════════════
    LIGHTNING
 ══════════════════════════════════════ */
 #trLightningCanvas{position:fixed;inset:0;z-index:9998;pointer-events:none;}
 
 /* ══════════════════════════════════════
-   RESPONSIVE — móvil y tablet
+   RESPONSIVE — tablet (≤900px)
 ══════════════════════════════════════ */
 @media(max-width:900px){
   #planetPanel{width:160px;right:8px;}
@@ -630,48 +716,130 @@
 
 /* Tablet (≤768px) — batalla */
 @media(max-width:768px){
-  #battleContent {
-    padding: 1rem .6rem;
-    gap: .7rem;
+  #battleContent { padding: 1rem .6rem; gap: .7rem; }
+  #battleRingBg  { background-position: center 30%; }
+  .bf-img        { width:110px; height:110px; }
+  #bfVS          { font-size:2.4rem; margin-bottom:1rem; }
+  #battleResult  { font-size:clamp(1rem,3.5vw,1.8rem); }
+  #battleFighters{ gap:1rem; }
+  .bf-aura       { width:130px; height:130px; }
+}
+
+/* ══════════════════════════════════════
+   MÓVIL (≤650px O pantalla táctil pequeña)
+   Ocultamos el panel lateral y el botón
+   flotante de escritorio y mostramos
+   la barra inferior móvil en su lugar.
+══════════════════════════════════════ */
+@media(max-width:650px) and (pointer: coarse) {
+  /* Ocultar elementos de escritorio */
+  #planetPanel     { display: none !important; }
+  #combatFloatBtn  { display: none !important; }
+
+  /* Mostrar barra inferior */
+  #mobileBar.active { display: flex !important; }
+
+  /* Detail card en columna */
+  #pdCard        { flex-direction:column; min-height:unset; }
+  #pdImgWrap     { width:100%; padding:1.5rem; }
+  #pdImg         { width:140px; height:140px; }
+  #pdInfo        { padding:1.4rem; max-height:60vh; }
+  #pdName        { font-size:2rem; }
+}
+
+/* ══════════════════════════════════════
+   MÓVIL — Selector de combate compacto
+   Los fighters van en fila horizontal,
+   imagen pequeña, todo cabe en pantalla
+══════════════════════════════════════ */
+@media(max-width:650px) and (pointer: coarse) {
+
+  /* ── Fix iOS autozoom: todo input >= 16px ──────────────────────
+     iOS hace zoom automático cuando font-size < 16px al hacer focus.
+     Forzamos 16px en TODOS los inputs de la página en móvil táctil.
+  ────────────────────────────────────────────────────────────────── */
+  input, textarea, select,
+  .cso-input,
+  #searchInput {
+    font-size: 16px !important;
   }
-  #battleRingBg {
-    background-position: center 30%;
+
+  /* Card del selector ocupa toda la pantalla */
+  #combatSelectorCard {
+    padding: .9rem .7rem 1rem;
+    border-radius: 20px;
+    max-height: 96vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
-  .bf-img { width:110px; height:110px; }
-  #bfVS { font-size:2.4rem; margin-bottom:1rem; }
-  #battleResult { font-size:clamp(1rem,3.5vw,1.8rem); }
-  #battleFighters { gap:1rem; }
-  .bf-aura { width:130px; height:130px; }
+
+  #csoHeader { margin-bottom: .6rem; }
+  #csoTitle  { font-size: 1.2rem; letter-spacing: 4px; }
+  #csoSub    { display: none; }
+
+  /* Arena: fila horizontal compacta */
+  #csoArena {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+    margin-bottom: .7rem;
+    flex-shrink: 0;
+  }
+
+  /* Cada fighter ocupa la mitad */
+  .cso-fighter {
+    min-height: unset;
+    border-radius: 0;
+  }
+  #csoFighterA { border-radius: 14px 0 0 14px; }
+  #csoFighterB { border-radius: 0 14px 14px 0; }
+
+  /* Imagen pequeña, fija */
+  .cso-fighter-img-wrap {
+    min-height: unset;
+    height: 110px;
+    flex: none;
+  }
+  .cso-fighter-img {
+    max-height: 105px;
+    object-fit: contain;
+  }
+  .cso-fighter-placeholder { height: 110px; font-size: 2.5rem; }
+
+  /* Nombre e info compactos */
+  .cso-fighter-label { font-size: .48rem; letter-spacing: 2px; margin-top: .3rem; }
+  .cso-fighter-name  { font-size: .8rem; letter-spacing: 1px; }
+  .cso-fighter-ki    { font-size: .58rem; margin-bottom: .2rem; }
+
+  /* Controles */
+  .cso-controls { padding: .3rem .4rem .5rem; gap: .25rem; }
+  .cso-input    { font-size: .68rem; padding: .3rem .5rem; }
+  .cso-rand     { font-size: .62rem; padding: .25rem; }
+
+  /* VS */
+  #csoVSBlock { width: 44px; }
+  #csoVS      { font-size: 1.6rem; letter-spacing: 2px; }
+
+  /* Botón luchar: siempre visible, tamaño fijo */
+  #csoFightBtn {
+    height: 56px;
+    flex-shrink: 0;
+  }
+  .cso-fight-content { font-size: 1.1rem; letter-spacing: 4px; }
 }
 
 /* Móvil pequeño (≤520px) — batalla en columna */
 @media(max-width:520px){
-  #csoArena { flex-direction:column; }
-  #csoFighterA, #csoFighterB { border-radius:14px; border:1px solid rgba(255,255,255,.06); min-height:auto; }
-  #csoVSBlock { height:50px; }
-  #csoVS { font-size:1.8rem; }
-  .cso-fighter-img { max-height:150px; }
-
-  /* Batalla en columna en móvil */
   #battleFighters { flex-direction:column; gap:.7rem; align-items:center; }
-  #bfVS { font-size:2rem; margin-bottom:0; }
-  .bf-img { width:85px; height:85px; }
-  .bf-side { max-width:100%; width:100%; flex-direction:row; flex-wrap:wrap; justify-content:center; gap:.4rem; }
-  .bf-bar-wrap { width:80%; }
-  .bf-aura { width:100px; height:100px; }
-  #battleContent { padding:.8rem .4rem; gap:.5rem; }
+  #bfVS           { font-size:2rem; margin-bottom:0; }
+  .bf-img         { width:85px; height:85px; }
+  .bf-side        { max-width:100%; width:100%; flex-direction:row; flex-wrap:wrap; justify-content:center; gap:.4rem; }
+  .bf-bar-wrap    { width:80%; }
+  .bf-aura        { width:100px; height:100px; }
+  #battleContent  { padding:.8rem .4rem; gap:.5rem; }
   #battlePhaseLabel { font-size:.85rem; letter-spacing:3px; }
-  #battleResult { font-size:1rem; min-height:2rem; }
-  #battleClose { padding:.4rem 1.2rem; font-size:.8rem; }
+  #battleResult   { font-size:1rem; min-height:2rem; }
+  #battleClose    { padding:.4rem 1.2rem; font-size:.8rem; }
   #battleTimerBar { height:7px; }
-}
-
-@media(max-width:650px){
-  #planetPanel{display:none!important;}
-  #combatFloatBtn{display:none!important;}
-  #pdCard{flex-direction:column;min-height:unset;}
-  #pdImgWrap{width:100%;padding:1.5rem;}
-  #pdImg{width:140px;height:140px;}
-  #pdInfo{padding:1.4rem;max-height:60vh;}
-  #pdName{font-size:2rem;}
 }
